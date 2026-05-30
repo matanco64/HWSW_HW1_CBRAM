@@ -4,16 +4,6 @@ project(CBRAM_Simulation CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# The OneDrive rclone mount is noexec — binaries must live outside it.
-# Override only if the user hasn't set a custom output directory.
-if(CMAKE_RUNTIME_OUTPUT_DIRECTORY STREQUAL "")
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY /tmp/cbram_build)
-endif()
-if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY /tmp/cbram_build)
-endif()
-file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-
 # Common flags for all stages — must be identical (except OpenMP on stage 3)
 set(COMMON_FLAGS "-O2 -march=native -Wall -Wno-unused-result")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS}")
