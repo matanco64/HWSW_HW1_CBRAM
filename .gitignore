@@ -67,3 +67,10 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+frames_stage*
+*.bin
+cbram_stage0
+cbram_stage1
+cbram_stage2
+cbram_stage3
+
