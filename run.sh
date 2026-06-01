@@ -1,15 +1,12 @@
 #!/usr/bin/env bash
 # run.sh — build, verify correctness, and profile all CBRAM stages.
-# Usage: bash run.sh [N]
+# Usage: ./run.sh [N]
 #   N  grid size (default 1024; tune so stage 0 takes 10-30 s)
-#
-# Must be invoked with `bash run.sh` (not ./run.sh) because the OneDrive
-# rclone mount is noexec — shebangs cannot be executed directly from it.
 
 set -euo pipefail
 
 SRCDIR="$(cd "$(dirname "$0")" && pwd)"
-BUILD_DIR="${BUILD_DIR:-/tmp/cbram_build}"
+BUILD_DIR="${BUILD_DIR:-${SRCDIR}/build}"
 N="${1:-1024}"
 RESULTS_DIR="${BUILD_DIR}/results"
 
@@ -129,7 +126,7 @@ echo "=== Hotspot check (perf record on stage 0) ==="
 (cd "${BUILD_DIR}" && \
     perf record -g \
     -o "${RESULTS_DIR}/stage0.data" \
-    "${BUILD_DIR}/cbram_stage0" "${N}")
+    "${BUILD_DIR}/cbram_stage0" "${N}" -v)
 perf report -i "${RESULTS_DIR}/stage0.data" --stdio 2>/dev/null | head -30
 
 # ── 8. Diff summary ───────────────────────────────────────────────────────────

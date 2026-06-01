@@ -10,7 +10,7 @@ static constexpr int32_t ONE = 1 << SHIFT;  // 1.0 in Q16.16
 // Grid parameters (can be overridden via CLI)
 static constexpr int DEFAULT_N         = 4096;
 static constexpr int JACOBI_ITERS      = 50;   // K: Jacobi iterations per timestep
-static constexpr int TOTAL_TIMESTEPS   = 200;  // outer simulation steps
+static constexpr int TOTAL_TIMESTEPS   = 3000;  // outer simulation steps
 static constexpr int FRAME_INTERVAL    = 2;    // dump PPM every N timesteps
 static constexpr uint32_t PRNG_SEED    = 42;
 

@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 # build.sh — compile all CBRAM simulation stages
-# Outputs go to BUILD_DIR (default /tmp/cbram_build) because the OneDrive
-# rclone mount is noexec; source files stay in the repo.
 
 set -euo pipefail
 
 SRCDIR="$(cd "$(dirname "$0")" && pwd)"
-BUILD_DIR="${BUILD_DIR:-/tmp/cbram_build}"
+BUILD_DIR="${BUILD_DIR:-${SRCDIR}/build}"
 
 CXX="${CXX:-g++}"
 CXXFLAGS="-O2 -march=native -std=c++17 -Wall -Wno-unused-result -I${SRCDIR}"

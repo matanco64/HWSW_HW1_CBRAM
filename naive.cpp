@@ -91,10 +91,12 @@ static void update_sigma(std::vector<Cell>& grid, int N) {
 }
 
 int main(int argc, char* argv[]) {
-    int N = (argc > 1) ? atoi(argv[1]) : DEFAULT_N;
+    int N = DEFAULT_N;
     bool verbose = false;
-    for (int i = 1; i < argc; ++i)
-        if (argv[i][0] == '-' && argv[i][1] == 'v') verbose = true;
+    for (int i = 1; i < argc; ++i) {
+        if (argv[i][0] == '-') { if (argv[i][1] == 'v') verbose = true; }
+        else N = atoi(argv[i]);
+    }
     size_t nn = (size_t)N * N;
 
     std::vector<Cell> grid(nn), grid_next(nn);

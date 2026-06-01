@@ -48,7 +48,5 @@ message(STATUS "  Compiler : ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSI
 message(STATUS "  Flags    : ${CMAKE_CXX_FLAGS}")
 message(STATUS "  OpenMP   : ${OpenMP_CXX_VERSION}")
 message(STATUS "")
-message(STATUS "NOTE: The OneDrive rclone mount is noexec.")
-message(STATUS "      Set CMAKE_RUNTIME_OUTPUT_DIRECTORY to /tmp/cbram_build")
-message(STATUS "      or run:  cmake -B /tmp/cbram_build -S . && cmake --build /tmp/cbram_build")
+message(STATUS "Run:  cmake -B build -S . && cmake --build build")
 message(STATUS "")
