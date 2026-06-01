@@ -21,10 +21,14 @@ struct Cell {
 };
 
 static void apply_boundary(std::vector<Cell>& grid, int N) {
-    for (int i = 0; i < N; ++i)
-        grid[i].V = V_APPLIED;
-    for (int i = 0; i < N; ++i)
-        grid[(N - 1) * N + i].V = 0;
+    // Dirichlet: top = V_APPLIED, bottom = 0
+    for (int i = 0; i < N; ++i) grid[i].V = V_APPLIED;
+    for (int i = 0; i < N; ++i) grid[(N - 1) * N + i].V = 0;
+    // Neumann: insulating left/right walls (dV/dx = 0)
+    for (int r = 0; r < N; ++r) {
+        grid[r * N].V         = grid[r * N + 1].V;
+        grid[r * N + (N-1)].V = grid[r * N + (N-2)].V;
+    }
 }
 
 // Jacobi iteration for Poisson equation with variable conductivity.
@@ -64,19 +68,25 @@ static void drift_diffusion(std::vector<Cell>& grid, int N) {
     for (int r = N - 2; r >= 1; --r) {
         for (int c = 1; c < N - 1; ++c) {
             int src = r * N + c;
-            int32_t flux = q_mul(ION_DRIFT, grid[src].ion);
+            int dst = (r + 1) * N + c;
+            // J-driven drift: flux = µ * σ * E * ion — localizes to high-conductivity paths
+            int32_t E_down = grid[src].V - grid[dst].V;
+            if (E_down <= 0) continue;
+            int32_t flux = q_mul(q_mul(q_mul(ION_MOBILITY, grid[src].sigma), E_down), grid[src].ion);
             int32_t avail = grid[src].ion - ION_LOW;
             if (flux > avail) flux = avail;
             if (flux <= 0) continue;
             grid[src].ion -= flux;
             if (r + 1 < N - 1)
-                grid[(r + 1) * N + c].ion = q_clamp(
-                    grid[(r + 1) * N + c].ion + flux, ION_LOW, ION_HIGH * 4);
+                grid[dst].ion = q_clamp(grid[dst].ion + flux, ION_LOW, ION_HIGH * 4);
         }
     }
-    // Active anode (row 1) continuously re-supplies metal ions
-    for (int c = 1; c < N - 1; ++c)
-        grid[N + c].ion = ION_HIGH;
+    // Active anode (row 1): electrodissolution proportional to local conductivity
+    // — supplies ions where current density is highest, localizing the filament
+    for (int c = 1; c < N - 1; ++c) {
+        int32_t inject = q_mul(ION_INJECT, grid[N + c].sigma);
+        grid[N + c].ion = q_clamp(grid[N + c].ion + inject, ION_LOW, ION_HIGH);
+    }
 }
 
 // Conductivity update: sigma grows with ion concentration.
@@ -134,6 +144,15 @@ int main(int argc, char* argv[]) {
             for (size_t i = 0; i < nn; ++i) sigma_buf[i] = grid[i].sigma;
             snprintf(path, sizeof(path), "frames_stage0/frame_%04d.ppm", t);
             write_ppm(path, sigma_buf.data(), N, SIGMA_MAX);
+        }
+
+        // Stop when any filament bridges to the cathode (SET complete)
+        bool bridged = false;
+        for (int c = 1; c < N - 1; ++c)
+            if (grid[(N - 2) * N + c].sigma >= SIGMA_MAX) { bridged = true; break; }
+        if (bridged) {
+            if (verbose) fprintf(stderr, "\n  Filament bridged at t=%d — SET complete\n", t + 1);
+            break;
         }
     }
 

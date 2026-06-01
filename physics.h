@@ -20,12 +20,13 @@ static constexpr int32_t SIGMA_LOW     = ONE / 100;     // background conductivi
 static constexpr int32_t SIGMA_HIGH    = 10 * ONE;      // seed defect conductivity (10.0)
 static constexpr int32_t ION_LOW       = ONE / 1000;    // background ion concentration
 static constexpr int32_t ION_HIGH      = ONE;           // seed ion concentration (1.0)
-static constexpr int32_t ION_DRIFT     = ONE / 50;      // fraction of ions transported per step
+static constexpr int32_t ION_MOBILITY  = 4 * ONE;      // µ: flux = µ·σ·E·ion (J-driven, localizes to conductive paths)
+static constexpr int32_t ION_INJECT   = ONE / 10;      // anode dissolution rate per unit sigma per step
 static constexpr int32_t SIGMA_GROWTH  = ONE / 10;      // conductivity growth per unit ion per step
 static constexpr int32_t SIGMA_MAX     = 20 * ONE;      // conductivity ceiling
 static constexpr int32_t TEMP_INIT     = 1 * ONE;       // uniform initial temperature
 
-static constexpr int NUM_SEEDS = 8; // number of defect seed sites
+static constexpr int NUM_SEEDS = 3; // number of defect seed sites
 
 // Clamp a Q16.16 value to [lo, hi]
 inline int32_t q_clamp(int32_t x, int32_t lo, int32_t hi) {
@@ -54,18 +55,17 @@ inline void init_fields(int N,
     for (int i = 0; i < N; ++i)
         V[i] = V_APPLIED;
 
-    // Place defect seeds with fixed PRNG
+    // Place defect seeds with fixed PRNG — each gets randomized strength
+    // so filaments compete and grow at different rates
     std::mt19937 rng(PRNG_SEED);
-    // Seeds in the top quarter — act as emission sites for downward-growing filaments
-    int seed_row_max = std::max(2, N / 4);
-    std::uniform_int_distribution<int> row_dist(1, seed_row_max);
     std::uniform_int_distribution<int> col_dist(1, N - 2);
+    std::uniform_real_distribution<float> strength_dist(0.2f, 1.0f);
 
     for (int s = 0; s < NUM_SEEDS; ++s) {
-        int r = row_dist(rng);
-        int c = col_dist(rng);
-        int idx = r * N + c;
-        sigma[idx] = SIGMA_HIGH;
-        ion[idx]   = ION_HIGH;
+        int c   = col_dist(rng);
+        float k = strength_dist(rng);
+        int idx = 1 * N + c;
+        sigma[idx] = (int32_t)(SIGMA_HIGH * k);
+        ion[idx]   = (int32_t)(ION_HIGH   * k);
     }
 }
