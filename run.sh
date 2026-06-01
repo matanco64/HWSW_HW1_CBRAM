@@ -41,8 +41,7 @@ run_stage() {
     mkdir -p "${BUILD_DIR}/frames_stage${stage}"
     # Run from BUILD_DIR so output files land there
     (cd "${BUILD_DIR}" && \
-        env ${extra_env} taskset -c 2 \
-        "${BUILD_DIR}/cbram_stage${stage}" "${N}")
+        env ${extra_env} "${BUILD_DIR}/cbram_stage${stage}" "${N}")
     cp "${BUILD_DIR}/V_final_stage${stage}.bin" \
        "${RESULTS_DIR}/V_final_stage${stage}.bin"
     echo ""
@@ -86,7 +85,7 @@ for stage in 0 1 2; do
     echo ""
     echo "--- Stage ${stage} ---"
     (cd "${BUILD_DIR}" && \
-        taskset -c 2 perf stat -r 3 \
+        perf stat -r 3 \
         -e "${PERF_EVENTS}" \
         "${BUILD_DIR}/cbram_stage${stage}" "${N}" \
         2> "${RESULTS_DIR}/stage${stage}.perf")
@@ -128,7 +127,7 @@ fi
 echo ""
 echo "=== Hotspot check (perf record on stage 0) ==="
 (cd "${BUILD_DIR}" && \
-    taskset -c 2 perf record -g \
+    perf record -g \
     -o "${RESULTS_DIR}/stage0.data" \
     "${BUILD_DIR}/cbram_stage0" "${N}")
 perf report -i "${RESULTS_DIR}/stage0.data" --stdio 2>/dev/null | head -30

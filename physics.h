@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <cstdint>
 #include <random>
 
@@ -19,8 +20,8 @@ static constexpr int32_t SIGMA_LOW     = ONE / 100;     // background conductivi
 static constexpr int32_t SIGMA_HIGH    = 10 * ONE;      // seed defect conductivity (10.0)
 static constexpr int32_t ION_LOW       = ONE / 1000;    // background ion concentration
 static constexpr int32_t ION_HIGH      = ONE;           // seed ion concentration (1.0)
-static constexpr int32_t ION_DRIFT     = ONE / 200;     // drift-diffusion step size
-static constexpr int32_t SIGMA_GROWTH  = ONE / 50;      // conductivity growth rate
+static constexpr int32_t ION_DRIFT     = ONE / 50;      // fraction of ions transported per step
+static constexpr int32_t SIGMA_GROWTH  = ONE / 10;      // conductivity growth per unit ion per step
 static constexpr int32_t SIGMA_MAX     = 20 * ONE;      // conductivity ceiling
 static constexpr int32_t TEMP_INIT     = 1 * ONE;       // uniform initial temperature
 
@@ -55,7 +56,9 @@ inline void init_fields(int N,
 
     // Place defect seeds with fixed PRNG
     std::mt19937 rng(PRNG_SEED);
-    std::uniform_int_distribution<int> row_dist(1, N - 2); // avoid electrodes
+    // Seeds in the top quarter — act as emission sites for downward-growing filaments
+    int seed_row_max = std::max(2, N / 4);
+    std::uniform_int_distribution<int> row_dist(1, seed_row_max);
     std::uniform_int_distribution<int> col_dist(1, N - 2);
 
     for (int s = 0; s < NUM_SEEDS; ++s) {

@@ -5,7 +5,7 @@
 // Memory layout: struct Cell { int32_t V, sigma, ion, temp; }
 // One Cell per grid point, 16 bytes. A 64-byte cache line holds
 // 4 cells. The Poisson hot loop reads only V and sigma from each
-// neighbor, so only 8 of the 16 floats fetched per line are used.
+// neighbor, so only 8 of the 16 bytes fetched per line are used.
 // Cache-line utilization: ~50%. This is the bottleneck the plan
 // targets with the SoA transformation in stage 1.
 // ============================================================
@@ -13,19 +13,16 @@
 #include "physics.h"
 #include "io.h"
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <sys/stat.h>
+#include <vector>
 
 struct Cell {
     int32_t V, sigma, ion, temp;
 };
 
-static void apply_boundary(Cell* grid, int N) {
-    // Top row: V = V_APPLIED (Dirichlet)
+static void apply_boundary(std::vector<Cell>& grid, int N) {
     for (int i = 0; i < N; ++i)
         grid[i].V = V_APPLIED;
-    // Bottom row: V = 0 (Dirichlet)
     for (int i = 0; i < N; ++i)
         grid[(N - 1) * N + i].V = 0;
 }
@@ -33,10 +30,9 @@ static void apply_boundary(Cell* grid, int N) {
 // Jacobi iteration for Poisson equation with variable conductivity.
 // V_new[i,j] = (s_e*V[i,j+1] + s_w*V[i,j-1] + s_n*V[i+1,j] + s_s*V[i-1,j])
 //              / (s_e + s_w + s_n + s_s)
-// where s_e = arithmetic mean of sigma at i,j and i,j+1, etc.
 // All arithmetic in Q16.16; accumulator in Q32.32 (int64_t).
-static void jacobi_sweep(const Cell* __restrict__ grid,
-                               Cell* __restrict__ next, int N)
+static void jacobi_sweep(const std::vector<Cell>& grid,
+                         std::vector<Cell>& next, int N)
 {
     for (int r = 1; r < N - 1; ++r) {
         for (int c = 1; c < N - 1; ++c) {
@@ -61,22 +57,30 @@ static void jacobi_sweep(const Cell* __restrict__ grid,
     }
 }
 
-// Drift-diffusion: ions move toward lower potential (down the field).
-// Simple upwind explicit Euler: ion flows in direction of E = -dV/dy.
-static void drift_diffusion(Cell* grid, int N) {
-    for (int r = 1; r < N - 1; ++r) {
+// Drift-diffusion: positive metal ions drift downward (anode row 0 → cathode row N-1).
+// Upwind explicit Euler swept bottom-to-top so destination row is not revisited
+// this step — avoids double-transporting the same ions in a single sweep.
+static void drift_diffusion(std::vector<Cell>& grid, int N) {
+    for (int r = N - 2; r >= 1; --r) {
         for (int c = 1; c < N - 1; ++c) {
-            int idx = r * N + c;
-            int32_t dV = grid[idx - N].V - grid[idx + N].V; // E points down
-            int32_t flux = q_mul(ION_DRIFT, dV > 0 ? dV : -dV);
-            if (dV > 0)
-                grid[idx].ion = q_clamp(grid[idx].ion + flux, 0, ION_HIGH * 2);
+            int src = r * N + c;
+            int32_t flux = q_mul(ION_DRIFT, grid[src].ion);
+            int32_t avail = grid[src].ion - ION_LOW;
+            if (flux > avail) flux = avail;
+            if (flux <= 0) continue;
+            grid[src].ion -= flux;
+            if (r + 1 < N - 1)
+                grid[(r + 1) * N + c].ion = q_clamp(
+                    grid[(r + 1) * N + c].ion + flux, ION_LOW, ION_HIGH * 4);
         }
     }
+    // Active anode (row 1) continuously re-supplies metal ions
+    for (int c = 1; c < N - 1; ++c)
+        grid[N + c].ion = ION_HIGH;
 }
 
-// Conductivity update: sigma grows logistically with ion concentration.
-static void update_sigma(Cell* grid, int N) {
+// Conductivity update: sigma grows with ion concentration.
+static void update_sigma(std::vector<Cell>& grid, int N) {
     for (int r = 1; r < N - 1; ++r) {
         for (int c = 1; c < N - 1; ++c) {
             int idx = r * N + c;
@@ -88,59 +92,53 @@ static void update_sigma(Cell* grid, int N) {
 
 int main(int argc, char* argv[]) {
     int N = (argc > 1) ? atoi(argv[1]) : DEFAULT_N;
+    bool verbose = false;
+    for (int i = 1; i < argc; ++i)
+        if (argv[i][0] == '-' && argv[i][1] == 'v') verbose = true;
+    size_t nn = (size_t)N * N;
 
-    Cell* grid      = (Cell*)malloc((size_t)N * N * sizeof(Cell));
-    Cell* grid_next = (Cell*)malloc((size_t)N * N * sizeof(Cell));
-    if (!grid || !grid_next) { fprintf(stderr, "malloc failed\n"); return 1; }
+    std::vector<Cell> grid(nn), grid_next(nn);
 
-    // Init via shared routine — extract field pointers from AoS
-    // We init separate arrays then scatter into the struct.
-    int32_t* tmp_V     = (int32_t*)malloc((size_t)N * N * sizeof(int32_t));
-    int32_t* tmp_sigma = (int32_t*)malloc((size_t)N * N * sizeof(int32_t));
-    int32_t* tmp_ion   = (int32_t*)malloc((size_t)N * N * sizeof(int32_t));
-    int32_t* tmp_temp  = (int32_t*)malloc((size_t)N * N * sizeof(int32_t));
-    init_fields(N, tmp_V, tmp_sigma, tmp_ion, tmp_temp);
-    for (int i = 0; i < N * N; ++i) {
-        grid[i].V     = tmp_V[i];
-        grid[i].sigma = tmp_sigma[i];
-        grid[i].ion   = tmp_ion[i];
-        grid[i].temp  = tmp_temp[i];
+    // Init via shared routine then scatter into AoS
+    {
+        std::vector<int32_t> V(nn), sigma(nn), ion(nn), temp(nn);
+        init_fields(N, V.data(), sigma.data(), ion.data(), temp.data());
+        for (size_t i = 0; i < nn; ++i)
+            grid[i] = {V[i], sigma[i], ion[i], temp[i]};
     }
-    free(tmp_V); free(tmp_sigma); free(tmp_ion); free(tmp_temp);
 
     mkdir("frames_stage0", 0755);
 
+    // Pre-allocate scratch buffers for frame/dump extraction
+    std::vector<int32_t> sigma_buf(nn), V_buf(nn);
+
     char path[256];
     for (int t = 0; t < TOTAL_TIMESTEPS; ++t) {
-        // Jacobi solve: K iterations
+        if (verbose) {
+            fprintf(stderr, "\r  timestep %d/%d", t + 1, TOTAL_TIMESTEPS);
+            fflush(stderr);
+        }
         for (int k = 0; k < JACOBI_ITERS; ++k) {
-            memcpy(grid_next, grid, (size_t)N * N * sizeof(Cell));
+            grid_next = grid;
             jacobi_sweep(grid, grid_next, N);
             apply_boundary(grid_next, N);
-            Cell* tmp = grid; grid = grid_next; grid_next = tmp;
+            std::swap(grid, grid_next);
         }
 
         drift_diffusion(grid, N);
         update_sigma(grid, N);
 
         if (t % FRAME_INTERVAL == 0) {
-            // Extract sigma for PPM writer
-            int32_t* sigma_buf = (int32_t*)malloc((size_t)N * N * sizeof(int32_t));
-            for (int i = 0; i < N * N; ++i) sigma_buf[i] = grid[i].sigma;
+            for (size_t i = 0; i < nn; ++i) sigma_buf[i] = grid[i].sigma;
             snprintf(path, sizeof(path), "frames_stage0/frame_%04d.ppm", t);
-            write_ppm(path, sigma_buf, N, SIGMA_MAX);
-            free(sigma_buf);
+            write_ppm(path, sigma_buf.data(), N, SIGMA_MAX);
         }
     }
 
-    // Final state dump for correctness verification
-    int32_t* V_buf = (int32_t*)malloc((size_t)N * N * sizeof(int32_t));
-    for (int i = 0; i < N * N; ++i) V_buf[i] = grid[i].V;
-    dump_binary("V_final_stage0.bin", V_buf, N);
-    free(V_buf);
+    if (verbose) fprintf(stderr, "\n");
+    for (size_t i = 0; i < nn; ++i) V_buf[i] = grid[i].V;
+    dump_binary("V_final_stage0.bin", V_buf.data(), N);
 
-    free(grid);
-    free(grid_next);
     printf("Stage 0 done. N=%d, timesteps=%d, Jacobi_iters=%d\n",
            N, TOTAL_TIMESTEPS, JACOBI_ITERS);
     return 0;
