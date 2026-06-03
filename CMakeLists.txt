@@ -34,6 +34,12 @@ target_link_libraries(cbram_stage0 PRIVATE cbram_io)
 # add_executable(cbram_stage3 opt3_omp.cpp)
 # target_link_libraries(cbram_stage3 PRIVATE cbram_io OpenMP::OpenMP_CXX)
 
+# ── Physics-improvement series ───────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/improved.cpp")
+    add_executable(cbram_improved improved.cpp)
+    target_link_libraries(cbram_improved PRIVATE cbram_io)
+endif()
+
 # ── Convenience target: build all stages ──────────────────────────────────────
 # TODO: add cbram_stage1 cbram_stage2 cbram_stage3 once their sources exist
 add_custom_target(all_stages

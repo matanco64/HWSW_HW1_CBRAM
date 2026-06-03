@@ -159,6 +159,8 @@ int main(int argc, char* argv[]) {
     if (verbose) fprintf(stderr, "\n");
     for (size_t i = 0; i < nn; ++i) V_buf[i] = grid[i].V;
     dump_binary("V_final_stage0.bin", V_buf.data(), N);
+    for (size_t i = 0; i < nn; ++i) sigma_buf[i] = grid[i].sigma;
+    dump_binary("sigma_final_stage0.bin", sigma_buf.data(), N);
 
     printf("Stage 0 done. N=%d, timesteps=%d, Jacobi_iters=%d\n",
            N, TOTAL_TIMESTEPS, JACOBI_ITERS);
