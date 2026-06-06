@@ -67,3 +67,53 @@ Log of prompts used throughout this project, as required by the assignment.
 
 **Tool:** Claude Code (claude-sonnet-4-6)
 **Output:** This prompts.md update; `.gitignore` verified (frames*, *.bin, build/ already excluded); `summary.md` created.
+
+---
+
+## Session 2 — Fix re-implementation after context compaction
+
+### Prompt 7 — Apply Fix 1: lateral diffusion (Yuval, via /compact instruction)
+> "then continue with Option A and apply fix 1"
+
+**Tool:** Claude Code (claude-sonnet-4-6)
+**Output:** Added explicit-Euler lateral diffusion pass in `drift_diffusion` using `D_LAT = ONE/20`. Narrowness improved (34.7% → 15.8%) but aspect ratio regressed (1.0 → 0.2) — diffusion homogenised ions into a horizontal band at the anode. Grade: **5/100 F**.
+
+---
+
+### Prompt 8 — Apply Fix 2: stochastic deposition (Yuval)
+> "proceed to Fix 2"
+
+**Tool:** Claude Code (claude-sonnet-4-6)
+**Output:** Replaced deterministic `σ += SIGMA_GROWTH × ion` with per-cell xorshift32 probabilistic deposition (threshold = `SIGMA_GROWTH × ion` mapped to `[0, 2³²)`). Narrowness jumped to 2.3% (20/25 pts). Aspect still 0.0 — bright cells all near anode seeds. Grade: **20/100 F**.
+
+---
+
+### Prompt 9 — Apply Fix 3: cathode nucleation (Yuval)
+> "proceed to Fix 3"
+
+**Tool:** Claude Code (claude-sonnet-4-6)
+**Output:** Three combined changes: (1) seeds relocated from row 1 → row N-2; (2) anode injection made constant (not σ-dependent, since σ at row 1 is now SIGMA_LOW); (3) ion drift decoupled from σ — `flux = ION_MOBILITY × E × ion` instead of `× σ × E × ion` (ionic and electronic conductivities are independent). Perfect narrowness 1.8% (25/25 pts). Aspect still 0.0 — ions don't reach the cathode seeds within 3000 steps without tip-only growth. Grade: **25/100 F**.
+
+---
+
+### Prompt 10 — Apply Fix 4: tip-only deposition (Yuval)
+> "proceed to Fix 4"
+
+**Tool:** Claude Code (claude-sonnet-4-6)
+**Output:** Four combined changes: (1) cathode seeds initialised at `SIGMA_MAX` (fully metallic so tip-only fires immediately); (2) electrolyte pre-filled with `ion = ION_HIGH` (physically: dissolved metal in equilibrium before SET); (3) `update_sigma` gated on adjacency to metallic cell (`σ > SIGMA_HIGH`); (4) `SIGMA_GROWTH_IMP = ONE` (10× baseline, ~10 deposits to metallic per cell → bridge in ~2000 steps); (5) early-exit check moved from row N-2 to row 1 (SET complete when filament reaches anode). Filament bridged at **t=2033**. However blob persists (91.2% bright, aspect 1.0) — tip-only gate failed to suppress the blob because the entire electrolyte becomes adjacent-to-metal once the filament spans the grid. Grade: **30/100 F** (bridging 30/30, all other metrics 0).
+
+---
+
+### Prompt 11 — Status check and command-line help (Yuval)
+> "what is the status? it seemed like you stuck" / "how do you run the simulation? what is the command line?"
+
+**Tool:** Claude Code (claude-sonnet-4-6)
+**Output:** Confirmed grader runs fine (<1 s for N=200). Session appeared stuck due to large verbose output being paginated. Commands: `./build/cbram_improved 200 -v` to run; `python3 grade_filament.py sigma_final_improved.bin` to grade. Current best: 30/100 F.
+
+---
+
+### Prompt 12 — Update prompts.md (Yuval)
+> "read @HWSW_HW1_CBRAM/prompts.md and update with what we added"
+
+**Tool:** Claude Code (claude-sonnet-4-6)
+**Output:** This update.
