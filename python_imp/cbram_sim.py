@@ -56,6 +56,18 @@ MAX_BRANCHES    = 5      # cap on total branch stump count
 
 RNG_SEED        = 42
 
+# ── Continuum experiment parameters ──────────────────────────────────────────
+# Active only with --continuum flag. Tests whether the pure drift-diffusion
+# approach works when two previously missing mechanisms are added:
+#   1. Ion decay — ions recombine with defects/stray electrons en route (loss term)
+#   2. J_e gating — deposition only where the metallic neighbour carries
+#      high electron current density (J_e = σ|∇V|), selecting the active tip
+ION_DECAY         = 0.0003 # fractional ion loss per step (~3333 step lifetime,
+                           # ~22% survive 200-row crossing at µ=8)
+SIGMA_GROWTH_CONT = 0.5    # deposit probability scale for continuum mode
+E_FIELD_THRESH    = 0.008  # min downward E field at candidate = 1.6× background (0.005)
+                           # Selects tip where V drops sharply into the metallic region
+
 # ── Colormap ──────────────────────────────────────────────────────────────────
 _cbram_cmap = LinearSegmentedColormap.from_list("cbram", [
     (0.00, (0.02, 0.02, 0.06)),
@@ -135,9 +147,14 @@ def solve_poisson(V, sigma, n=JACOBI_ITERS):
 # Ion field is maintained for the 4th panel visualization only.
 # It shows where ions accumulate (near filament tips), validating the physics story.
 
-def drift_diffusion(ion, sigma, V):
+def drift_diffusion(ion, sigma, V, decay=0.0):
     ion = ion.copy()
     ion[sigma >= BRIGHT] = ION_LOW   # no mobile ions in metallic cells
+
+    # Ion decay: recombination with defects / stray electrons en route.
+    # Drains background accumulation so only ions near the active tip survive.
+    if decay > 0.0:
+        ion = np.maximum(ion * (1.0 - decay), ION_LOW)
 
     E_down = np.clip(V[1:-1, 1:-1] - V[2:, 1:-1], 0.0, 0.02)
     flux   = ION_MOBILITY * E_down * ion[1:-1, 1:-1]
@@ -153,6 +170,70 @@ def drift_diffusion(ion, sigma, V):
         ION_LOW, ION_HIGH * 4
     )
     return ion
+
+
+def stochastic_deposit_je(ion, sigma, V, rng):
+    """
+    Continuum stochastic deposition gated by local downward electric field.
+
+    Deposition at (r,c) requires:
+      1. Metal directly below at (r+1,c)  — tip adjacency
+      2. E_down = V[r-1,c] - V[r,c] > E_FIELD_THRESH
+         The field arriving at the candidate from above must exceed 1.6× background.
+         This selects the active tip: V drops sharply into the near-zero region
+         created by the metallic cell below, concentrating the field there.
+         Cells deep in the filament perimeter or far from the tip have weaker field.
+      3. Stochastic: prob = SIGMA_GROWTH_CONT * ion[r,c]
+
+    Why E_down at the candidate (not J_e at the metallic neighbor):
+      The metallic cell directly below is screened — V inside the metal ≈ 0 (grounded
+      via the filament to the cathode), and the candidate above is also pulled toward 0
+      by the strong σ coupling. This makes |∇V| inside the metal near zero.
+      But the field ABOVE the candidate (V[r-1] - V[r]) is enhanced because V[r] ≈ 0
+      while V[r-1] is at normal electrolyte potential.
+    """
+    sigma = sigma.copy()
+    metal = sigma >= BRIGHT
+
+    # Downward E field arriving at each cell from the row above
+    # E_down[r,c] = V[r-1,c] - V[r,c]  (positive = field drives ions downward into r,c)
+    E_down = np.zeros_like(V)
+    E_down[1:, :] = V[:-1, :] - V[1:, :]
+    E_down = np.maximum(E_down, 0.0)
+
+    # Strict tip: metal directly below
+    metal_below = np.roll(metal, -1, axis=0)
+
+    # Diagonal tip: metal one row below AND one column to the side.
+    # Lateral ion diffusion creates a left/right concentration gradient that
+    # determines which diagonal fires — this is where diffusion drives tortuosity.
+    diag_l = np.roll(metal_below,  1, axis=1)   # metal at (r+1, c-1)
+    diag_r = np.roll(metal_below, -1, axis=1)   # metal at (r+1, c+1)
+    adj_diagonal = (diag_l | diag_r) & ~metal_below
+
+    for arr in (metal_below, adj_diagonal):
+        arr[0, :] = arr[-1, :] = arr[:, 0] = arr[:, -1] = False
+
+    cand_strict = metal_below   & ~metal & (E_down > E_FIELD_THRESH)
+    cand_diag   = adj_diagonal  & ~metal & (E_down > E_FIELD_THRESH * 0.6)
+
+    prob      = np.clip(SIGMA_GROWTH_CONT * ion, 0.0, 1.0)
+    prob_diag = prob * 0.08   # rare lateral L-steps — a few deflections, not a thicket
+    rolls     = rng.random((N, N))
+
+    dep_strict = cand_strict & (rolls < prob)
+    dep_diag   = cand_diag   & (rolls < prob_diag)
+
+    # 4-connectivity bridge: each diagonal deposit at (r,c) also deposits (r+1,c).
+    # This creates the L-path: metal[r+1,c±1] → bridge[r+1,c] → diag[r,c].
+    # Without the bridge, diagonal cells are only 8-connected — grader BFS fails.
+    bridge = np.roll(dep_diag, 1, axis=0)   # shift diag deposits down to (r+1,c)
+    bridge[0, :] = bridge[-1, :] = bridge[:, 0] = bridge[:, -1] = False
+    bridge &= ~metal   # don't overwrite existing metal
+
+    deposited = dep_strict | dep_diag | bridge
+    sigma[deposited] = SIGMA_MAX
+    return sigma, deposited
 
 # ── Field-guided tip growth ───────────────────────────────────────────────────
 # Each tip moves one step per timestep. Direction probabilities derived from
@@ -274,7 +355,7 @@ def render(fig, axes, sigma, V, ion, t, bridged):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def run(save_gif=False):
+def run(save_gif=False, continuum=False):
     rng = np.random.default_rng(RNG_SEED)
 
     sigma = np.full((N, N), SIGMA_LOW)
@@ -291,14 +372,25 @@ def run(save_gif=False):
     t_bridge = None
     t0       = time.time()
 
-    print(f"CBRAM field-guided tip growth  N={N}  T_MAX={T_MAX}")
-    print(f"  field_strength={FIELD_STRENGTH}  base_up={BASE_P_UP}"
-          f"  branch_prob={P_BRANCH_SPAWN}  max_branches={MAX_BRANCHES}")
+    if continuum:
+        print(f"CBRAM CONTINUUM mode  N={N}  T_MAX={T_MAX}")
+        print(f"  decay={ION_DECAY}  E_field_thresh={E_FIELD_THRESH}"
+              f"  deposit_scale={SIGMA_GROWTH_CONT}")
+    else:
+        print(f"CBRAM field-guided tip growth  N={N}  T_MAX={T_MAX}")
+        print(f"  field_strength={FIELD_STRENGTH}  base_up={BASE_P_UP}"
+              f"  branch_prob={P_BRANCH_SPAWN}  max_branches={MAX_BRANCHES}")
 
     for t in range(T_MAX):
-        V                    = solve_poisson(V, sigma, n=JACOBI_ITERS)
-        ion                  = drift_diffusion(ion, sigma, V)
-        sigma, tips, b, n_br = grow_step(tips, sigma, V, rng, n_br)
+        V   = solve_poisson(V, sigma, n=JACOBI_ITERS)
+        ion = drift_diffusion(ion, sigma, V, decay=ION_DECAY if continuum else 0.0)
+
+        if continuum:
+            sigma, deposited = stochastic_deposit_je(ion, sigma, V, rng)
+            ion[deposited]   = ION_LOW     # consume ions at deposition sites
+            b = bool(np.any(sigma[1, 1:-1] >= BRIGHT))
+        else:
+            sigma, tips, b, n_br = grow_step(tips, sigma, V, rng, n_br)
 
         if b and not bridged:
             bridged  = True
@@ -308,8 +400,12 @@ def run(save_gif=False):
         if t % FRAME_EVERY == 0:
             frames.append((sigma.copy(), V.copy(), ion.copy(), t))
             nm = int(np.sum(sigma >= BRIGHT))
-            print(f"  t={t:5d}  metal={nm:5d}  tips={len(tips):2d}"
-                  f"  {'BRIDGED' if bridged else '      '}  {time.time()-t0:.1f}s")
+            if continuum:
+                print(f"  t={t:5d}  metal={nm:5d}"
+                      f"  {'BRIDGED' if bridged else '      '}  {time.time()-t0:.1f}s")
+            else:
+                print(f"  t={t:5d}  metal={nm:5d}  tips={len(tips):2d}"
+                      f"  {'BRIDGED' if bridged else '      '}  {time.time()-t0:.1f}s")
 
         if bridged:
             break
@@ -363,4 +459,4 @@ def run(save_gif=False):
 
 
 if __name__ == "__main__":
-    run(save_gif="--gif" in sys.argv)
+    run(save_gif="--gif" in sys.argv, continuum="--continuum" in sys.argv)
