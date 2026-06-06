@@ -7,7 +7,7 @@
 // ============================================================
 
 #include "physics_improved.h"
-#include "io.h"
+#include "../io.h"
 #include <cstdio>
 #include <sys/stat.h>
 #include <vector>
