@@ -130,14 +130,28 @@ int main(int argc, char* argv[]) {
                     step, step + 1, chosen / N);
 
         if (step % FRAME_INTERVAL == 0) {
-            for (size_t i = 0; i < nn; ++i)
+            for (size_t i = 0; i < nn; ++i) {
+                V_buf[i]     = grid[i].V;
                 sigma_buf[i] = grid[i].metal ? SIGMA_MAX : SIGMA_LOW;
-            snprintf(path, sizeof(path), "frames_stage0/frame_%04d.ppm", step);
-            write_ppm(path, sigma_buf.data(), N, SIGMA_MAX);
+            }
+            snprintf(path, sizeof(path), "frames_stage0/frame_%06d_V.bin", step);
+            dump_binary(path, V_buf.data(), N);
+            snprintf(path, sizeof(path), "frames_stage0/frame_%06d_S.bin", step);
+            dump_binary(path, sigma_buf.data(), N);
         }
 
         if (chosen / N <= 1) { bridged = true; break; }   // reached the anode
     }
+
+    // Final frame so the video ends on the bridged filament.
+    for (size_t i = 0; i < nn; ++i) {
+        V_buf[i]     = grid[i].V;
+        sigma_buf[i] = grid[i].metal ? SIGMA_MAX : SIGMA_LOW;
+    }
+    snprintf(path, sizeof(path), "frames_stage0/frame_%06d_V.bin", step);
+    dump_binary(path, V_buf.data(), N);
+    snprintf(path, sizeof(path), "frames_stage0/frame_%06d_S.bin", step);
+    dump_binary(path, sigma_buf.data(), N);
 
     if (verbose)
         fprintf(stderr, "\n  %s at step %d\n",
