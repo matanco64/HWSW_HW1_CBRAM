@@ -117,3 +117,45 @@ Log of prompts used throughout this project, as required by the assignment.
 
 **Tool:** Claude Code (claude-sonnet-4-6)
 **Output:** This update.
+
+---
+
+## Session 3 — Python ground truth and physics model decision (Matan)
+
+### Prompt 13 — Python implementation analysis and C++ port decision (Matan)
+> "look at the folder python_imp, there is a python implemenation created by Yuval, Unlike our CPP implementation, it works and outputs a good result, For the project we would like to move it to C/C++, what would you prefer on doing (C imp or C++ imp) also, please tell me about the implementation is it still cache optmizable? and again we should start with a naive implemenation"
+
+**Tool:** Claude Code (claude-sonnet-4-6)
+**Output:** Analyzed `python_imp/cbram_sim.py` — identified it uses biased random-walk tip-growth (DLA-style), not continuum drift-diffusion. Jacobi solver is visualization-only; tip probabilities are hardcoded constants (P_UP=0.60 etc.), V never passed to `grow_step()`. Recommended C++ to reuse existing infrastructure. Confirmed Jacobi kernel is still the cache-optimization target.
+
+---
+
+### Prompt 14 — Questioning the role of Jacobi (Matan)
+> "If it is just a random walk why the Jacobi kernel is important for the simulation? is it not just a random walk sim?"
+
+**Tool:** Claude Code (claude-sonnet-4-6)
+**Output:** Confirmed V is not used inside `grow_step()` at all — Jacobi output is purely cosmetic. Concluded the pure random walk has no meaningful bottleneck to optimize, making it unsuitable for the HW optimization story.
+
+---
+
+### Prompt 15 — Physics model selection (Matan)
+> "I want you to read the @HW1.pdf I think doing B will be a better option for doing the task at hand (a computationally intensive sim), but please suggest more options, I think the original Continuum Nernst-Planck drift was a bit hard (it didnt work well for the branching) but maybe there is a middle ground I am missing"
+
+**Tool:** Claude Code (claude-sonnet-4-6)
+**Output:** Read HW1.pdf. Presented 4 options: (A) pure random walk — Jacobi cosmetic, nothing to optimize; (B) continuum Nernst-Planck — correct bottleneck, poor branching; (C) physical transport + stochastic tip-only deposition — sweet spot, Jacobi load-bearing, branching from stochastic deposition; (D) interface DLA with Butler-Volmer probabilities. Recommended Option C.
+
+---
+
+### Prompt 16 — Python as ground truth (Matan)
+> "I agree with C, but first I want to fix the Current python simulation, it is easier to iterate and it will be our ground truth, what do you think?"
+
+**Tool:** Claude Code (claude-sonnet-4-6)
+**Output:** Agreed. Clarified "fix" = replace pure random walk with Option C physics (real ion transport + stochastic tip-adjacent deposition). Noted Python float ≠ Q16.16, so it is a qualitative ground truth, not bit-exact.
+
+---
+
+### Prompt 17 — Plan Python rewrite, visual-first (Matan)
+> "Let's start with the plan, currently DONT give the grader too much meaning, let me look visually first and then we will fix the grader together, but first, add the last couple of promts I gave you to promts.md"
+
+**Tool:** Claude Code (claude-sonnet-4-6)
+**Output:** Updated `prompts.md` with prompts 13–17. Next: plan the Python rewrite of `cbram_sim.py` with Option C physics, visual iteration before grader tuning.

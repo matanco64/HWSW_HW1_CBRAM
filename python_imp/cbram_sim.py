@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
 cbram_sim.py — CBRAM Conductive Filament Simulation
-Physics: biased random-walk tip growth (DLA slow-deposition limit)
-         + Laplace field for visualisation
+Physics: Field-guided tip growth — Jacobi V field biases the random walk direction.
+         Ion drift-diffusion computed for visualization (ion panel).
+
+Key difference from Yuval's original: walk probabilities are NOT hardcoded.
+They are derived from the local E field at the tip each step, so the Jacobi
+solve is genuinely load-bearing (changing sigma changes V which changes growth).
 
 Grid: row 0 = anode (V=1), row N-1 = cathode (V=0).
 Seed at cathode row N-2; filament grows upward toward row 0.
-
-All moves are 4-connected (no diagonals) — required for BFS grader.
-Side branches are HORIZONTAL-only so they create junctions without
-providing BFS shortcuts on the vertical path (which would lower tortuosity).
 
 Usage:
   python3 cbram_sim.py          # run, save PNG + binary
@@ -29,39 +29,32 @@ from collections import deque
 N            = 200
 T_MAX        = 6_000
 FRAME_EVERY  = 30
-JACOBI_ITERS = 40
+JACOBI_ITERS = 50
 
 # ── Device physics ────────────────────────────────────────────────────────────
 V_APPLIED    = 1.0
 SIGMA_LOW    = 0.01
 SIGMA_MAX    = 20.0
-BRIGHT       = SIGMA_MAX / 2.0      # grader bright threshold = 10.0
+BRIGHT       = SIGMA_MAX / 2.0
 
-# ── Main trunk walk (4-connected only, probabilities sum to 1.0) ─────────────
-# Tuned for tort>1.5 AND aspect>5 simultaneously:
-#   net_upward = 0.60 - 0.04 = 0.56 → steps ≈ 357
-#   lateral σ = sqrt(0.36×357) = 11.3 → width ≈ 22 cells → aspect ≈ 9
-# Multiple seeds give tort≥1.5 with these params (see seed search above).
-P_UP    = 0.60
-P_LEFT  = 0.18
-P_RIGHT = 0.18
-P_DOWN  = 0.04
+ION_LOW      = 0.001
+ION_HIGH     = 1.0
+ION_MOBILITY = 8.0      # ion drift speed (visualization only)
+ION_INJECT   = 0.3      # anode injection rate (visualization only)
+ION_DIFFUSION = 0.02    # lateral diffusion (visualization only)
 
-# ── Horizontal side-branches ──────────────────────────────────────────────────
-P_BRANCH_SPAWN = 0.010   # prob per main-tip step
-BRANCH_H_PROB  = 0.88    # P(continue in branch direction)
-BRANCH_MAX_LEN = 8       # branch deposits at most this many cells (keeps width tight)
-MAX_BRANCHES   = 4       # cap; each branch adds ≤8 cells to each side of trunk
+# ── Tip-growth parameters ─────────────────────────────────────────────────────
+# Walk probabilities are field-guided: base + field_strength * local_E
+# The Jacobi V field drives growth — high E toward anode → tip grows upward.
+FIELD_STRENGTH  = 30.0  # how strongly E field biases the walk
+BASE_P_UP       = 0.40  # minimum upward bias (even at zero field)
+BASE_P_LATERAL  = 0.08  # base left/right probability
+BASE_P_DOWN     = 0.02  # base downward probability (drift opposes this)
 
-# ── Misc ──────────────────────────────────────────────────────────────────────
-NUM_SEEDS   = 1
-RNG_SEED    = 71    # gives tort≈1.59, aspect≈6.6, junc≈138 → 100/100
+P_BRANCH_SPAWN  = 0.012  # probability per tip step of spawning a side branch
+MAX_BRANCHES    = 5      # cap on total branch stump count
 
-# ── Pre-built cumulative table for main trunk ─────────────────────────────────
-_CUM = np.cumsum([P_UP, P_LEFT, P_RIGHT, P_DOWN])
-_DR  = np.array([-1,  0,  0,  1], dtype=np.int32)
-_DC  = np.array([ 0, -1,  1,  0], dtype=np.int32)
-_ALL_MOVES = [(-1,0),(0,-1),(0,1),(1,0)]   # for retry scan
+RNG_SEED        = 42
 
 # ── Colormap ──────────────────────────────────────────────────────────────────
 _cbram_cmap = LinearSegmentedColormap.from_list("cbram", [
@@ -123,79 +116,116 @@ def grade(sigma):
 # ── Poisson solver ────────────────────────────────────────────────────────────
 
 def solve_poisson(V, sigma, n=JACOBI_ITERS):
-    V=V.copy()
+    V = V.copy()
     for _ in range(n):
-        sE=(sigma[1:-1,2:]+sigma[1:-1,1:-1])*.5
-        sW=(sigma[1:-1,:-2]+sigma[1:-1,1:-1])*.5
-        sN=(sigma[:-2,1:-1]+sigma[1:-1,1:-1])*.5
-        sS=(sigma[2:,1:-1]+sigma[1:-1,1:-1])*.5
-        d=np.where(sE+sW+sN+sS<1e-15,1e-15,sE+sW+sN+sS)
-        V[1:-1,1:-1]=(sE*V[1:-1,2:]+sW*V[1:-1,:-2]+sN*V[:-2,1:-1]+sS*V[2:,1:-1])/d
-        V[0,:]=V_APPLIED; V[-1,:]=0.; V[:,0]=V[:,1]; V[:,-1]=V[:,-2]
+        sE = (sigma[1:-1, 2:] + sigma[1:-1, 1:-1]) * .5
+        sW = (sigma[1:-1, :-2] + sigma[1:-1, 1:-1]) * .5
+        sN = (sigma[:-2, 1:-1] + sigma[1:-1, 1:-1]) * .5
+        sS = (sigma[2:,  1:-1] + sigma[1:-1, 1:-1]) * .5
+        d  = np.where(sE + sW + sN + sS < 1e-15, 1e-15, sE + sW + sN + sS)
+        V[1:-1, 1:-1] = (sE*V[1:-1, 2:] + sW*V[1:-1, :-2] +
+                         sN*V[:-2, 1:-1] + sS*V[2:,  1:-1]) / d
+        V[0, :]  = V_APPLIED
+        V[-1, :] = 0.0
+        V[:, 0]  = V[:, 1]
+        V[:, -1] = V[:, -2]
     return V
 
-# ── Tip growth ────────────────────────────────────────────────────────────────
-# Tip tuple: (r, c, kind, aux)
-#   kind=0  main trunk       aux unused (0)
-#   kind=1  horizontal branch   aux = bdir*1000 + steps_remaining
-#           bdir = +1 (right) or -1 (left)
+# ── Ion drift-diffusion (visualization) ──────────────────────────────────────
+# Ion field is maintained for the 4th panel visualization only.
+# It shows where ions accumulate (near filament tips), validating the physics story.
 
-def grow_step(tips, sigma, rng, n_br):
-    metal   = sigma >= BRIGHT
-    sigma   = sigma.copy()
-    out     = []
+def drift_diffusion(ion, sigma, V):
+    ion = ion.copy()
+    ion[sigma >= BRIGHT] = ION_LOW   # no mobile ions in metallic cells
+
+    E_down = np.clip(V[1:-1, 1:-1] - V[2:, 1:-1], 0.0, 0.02)
+    flux   = ION_MOBILITY * E_down * ion[1:-1, 1:-1]
+    avail  = np.maximum(ion[1:-1, 1:-1] - ION_LOW, 0.0)
+    flux   = np.minimum(flux, avail)
+    ion[1:-1, 1:-1] -= flux
+    ion[2:,   1:-1]  = np.clip(ion[2:, 1:-1] + flux, ION_LOW, ION_HIGH * 4)
+    ion[1, 1:-1]     = np.clip(ion[1, 1:-1] + ION_INJECT, ION_LOW, ION_HIGH)
+
+    lat = np.roll(ion, -1, axis=1) + np.roll(ion, 1, axis=1) - 2 * ion
+    ion[1:-1, 1:-1] = np.clip(
+        ion[1:-1, 1:-1] + ION_DIFFUSION * lat[1:-1, 1:-1],
+        ION_LOW, ION_HIGH * 4
+    )
+    return ion
+
+# ── Field-guided tip growth ───────────────────────────────────────────────────
+# Each tip moves one step per timestep. Direction probabilities derived from
+# the local E field computed by solve_poisson — V is genuinely load-bearing.
+
+_DR = np.array([-1,  0,  0,  1])   # up, left, right, down
+_DC = np.array([ 0, -1,  1,  0])
+
+def grow_step(tips, sigma, V, rng, n_br):
+    metal  = sigma >= BRIGHT
+    sigma  = sigma.copy()
+    out    = []
     bridged = False
 
-    for (r, c, kind, aux) in tips:
+    for (r, c) in tips:
+        # Local field in 4 directions (positive = higher V in that direction)
+        E = np.array([
+            V[r-1, c] - V[r, c] if r > 1   else 0.0,   # up
+            V[r, c-1] - V[r, c] if c > 1   else 0.0,   # left
+            V[r, c+1] - V[r, c] if c < N-2 else 0.0,   # right
+            V[r+1, c] - V[r, c] if r < N-2 else 0.0,   # down
+        ])
 
-        if kind == 0:
-            # ── Main trunk ────────────────────────────────────────────────
-            idx = int(np.searchsorted(_CUM, rng.random()))
-            dr  = int(_DR[idx]); dc = int(_DC[idx])
-            nr  = max(1, min(N-2, r+dr))
-            nc  = max(1, min(N-2, c+dc))
+        # Base probabilities + field enhancement (field points toward anode = up)
+        base = np.array([BASE_P_UP, BASE_P_LATERAL, BASE_P_LATERAL, BASE_P_DOWN])
+        w    = base + FIELD_STRENGTH * np.maximum(E, 0.0)
+        w   /= w.sum()
 
-            if metal[nr, nc]:
-                # Retry: try all 4 directions in random order
-                free = [(max(1,min(N-2,r+dd)),max(1,min(N-2,c+ee)))
-                        for (dd,ee) in _ALL_MOVES
-                        if not metal[max(1,min(N-2,r+dd)),max(1,min(N-2,c+ee))]]
-                if not free:
-                    continue   # tip completely surrounded → kill it
-                pick = rng.integers(len(free))
-                nr, nc = free[pick]
+        # Sample direction; retry if blocked (up to 4 tries)
+        moved = False
+        order = rng.permutation(4)
+        cumul = np.cumsum(w)
+        roll  = rng.random()
+        idx   = int(np.searchsorted(cumul, roll))
 
-            sigma[nr, nc] = SIGMA_MAX
-            metal[nr, nc] = True
-            out.append((nr, nc, 0, 0))
-            if nr == 1:
-                bridged = True
+        for attempt in range(4):
+            i  = (idx + attempt) % 4
+            nr = max(1, min(N-2, r + int(_DR[i])))
+            nc = max(1, min(N-2, c + int(_DC[i])))
+            if not metal[nr, nc]:
+                sigma[nr, nc] = SIGMA_MAX
+                metal[nr, nc] = True
+                out.append((nr, nc))
+                if nr == 1:
+                    bridged = True
+                moved = True
+                break
 
-            # Spawn a 1-cell branch stump adjacent to OLD position (r,c).
-            # Using the old position avoids blocking the current tip at (nr,nc).
-            # This creates a Y-junction at (r,c) without impeding forward growth.
-            if n_br < MAX_BRANCHES and rng.random() < P_BRANCH_SPAWN:
-                bdir = 1 if rng.random() < 0.5 else -1
-                bc   = c + bdir      # adjacent to OLD trunk cell, not current
-                if 1 <= bc <= N-2 and not metal[r, bc]:
-                    sigma[r, bc] = SIGMA_MAX
-                    metal[r, bc] = True
-                    n_br += 1        # 1-cell stump: no further tip needed
+        if not moved:
+            out.append((r, c))  # surrounded — tip stays (rare)
 
-        # (no else: all tips are kind=0; 1-cell branch stumps have no tip)
+        # Spawn 1-cell horizontal branch stump at OLD position
+        if n_br < MAX_BRANCHES and rng.random() < P_BRANCH_SPAWN:
+            bdir = 1 if rng.random() < 0.5 else -1
+            bc = c + bdir
+            if 1 <= bc <= N-2 and not metal[r, bc]:
+                sigma[r, bc] = SIGMA_MAX
+                metal[r, bc] = True
+                n_br += 1
 
     return sigma, out, bridged, n_br
 
-# ── Save binary (Q16.16 int32, compatible with grade_filament.py) ─────────────
+# ── Save binary ───────────────────────────────────────────────────────────────
 
 def save_binary(sigma, path):
     (sigma * 65536).astype(np.int32).tofile(path)
 
-# ── Render ────────────────────────────────────────────────────────────────────
+# ── Render — 4 panels: sigma, V, |∇V|, ion ───────────────────────────────────
 
-def render(fig, axes, sigma, V, t, bridged):
-    ax_f, ax_v, ax_e = axes
-    for ax in axes: ax.clear()
+def render(fig, axes, sigma, V, ion, t, bridged):
+    ax_f, ax_v, ax_e, ax_i = axes
+    for ax in axes:
+        ax.clear()
 
     log_s = np.log1p(sigma)
     ax_f.imshow(log_s, cmap=_cbram_cmap, origin="upper",
@@ -208,9 +238,9 @@ def render(fig, axes, sigma, V, t, bridged):
     ax_f.axhline(N-1.5, color="#aaaaaa", lw=1, ls="--", alpha=0.6)
     ax_f.text(2, 2,   "ANODE ⊕",   color="#55aaff", fontsize=7, va="top")
     ax_f.text(2, N-2, "CATHODE ⊖", color="#aaaaaa", fontsize=7, va="bottom")
-    bfrac = 100*len(mr)/(N*N)
-    ax_f.set_title(f"Conductive Filament  t={t}{'  ✓ BRIDGED' if bridged else ''}\n"
-                   f"metallic cells: {len(mr)}  ({bfrac:.2f}%)",
+    bfrac = 100 * len(mr) / (N * N)
+    ax_f.set_title(f"Conductivity σ  t={t}{'  ✓ BRIDGED' if bridged else ''}\n"
+                   f"metallic: {len(mr)} ({bfrac:.2f}%)",
                    color="white", fontsize=8, pad=3)
     ax_f.set_facecolor("#050508")
     for sp in ax_f.spines.values(): sp.set_color("#333")
@@ -222,15 +252,23 @@ def render(fig, axes, sigma, V, t, bridged):
     ax_v.set_facecolor("#050508"); ax_v.tick_params(colors="gray", labelsize=6)
     for sp in ax_v.spines.values(): sp.set_color("#333")
 
-    dVr=np.zeros_like(V); dVr[1:-1,:]=V[:-2,:]-V[2:,:]
-    dVc=np.zeros_like(V); dVc[:,1:-1]=V[:,:-2]-V[:,2:]
-    Emag=np.sqrt(dVr**2+dVc**2)
-    vm=float(np.percentile(Emag,99.5))+1e-9
+    dVr = np.zeros_like(V); dVr[1:-1, :] = V[:-2, :] - V[2:, :]
+    dVc = np.zeros_like(V); dVc[:, 1:-1] = V[:, :-2] - V[:, 2:]
+    Emag = np.sqrt(dVr**2 + dVc**2)
+    vm = float(np.percentile(Emag, 99.5)) + 1e-9
     ax_e.imshow(Emag, cmap="inferno", origin="upper", vmin=0, vmax=vm,
                 aspect="equal", interpolation="nearest")
     ax_e.set_title("|∇φ|  (field magnitude)", color="white", fontsize=8, pad=3)
     ax_e.set_facecolor("#050508"); ax_e.tick_params(colors="gray", labelsize=6)
     for sp in ax_e.spines.values(): sp.set_color("#333")
+
+    log_i = np.log1p(ion)
+    ax_i.imshow(log_i, cmap="plasma", origin="upper",
+                vmin=0, vmax=np.log1p(ION_HIGH * 4), aspect="equal",
+                interpolation="nearest")
+    ax_i.set_title("Ion concentration C", color="white", fontsize=8, pad=3)
+    ax_i.set_facecolor("#050508"); ax_i.tick_params(colors="gray", labelsize=6)
+    for sp in ax_i.spines.values(): sp.set_color("#333")
 
     fig.tight_layout(pad=1.0)
 
@@ -239,26 +277,28 @@ def render(fig, axes, sigma, V, t, bridged):
 def run(save_gif=False):
     rng = np.random.default_rng(RNG_SEED)
 
-    sigma = np.full((N,N), SIGMA_LOW)
-    V     = np.linspace(V_APPLIED, 0, N).reshape(-1,1)*np.ones((1,N))
+    sigma = np.full((N, N), SIGMA_LOW)
+    ion   = np.full((N, N), ION_LOW)
+    V     = np.linspace(V_APPLIED, 0.0, N).reshape(-1, 1) * np.ones((1, N))
 
-    seed_c = N // 2
-    sigma[N-2, seed_c] = SIGMA_MAX
-    tips  = [(N-2, seed_c, 0, 0)]
-    n_br  = 0
+    # Single seed at cathode center
+    sigma[N-2, N // 2] = SIGMA_MAX
+    tips = [(N-2, N // 2)]
+    n_br = 0
 
     frames   = []
     bridged  = False
     t_bridge = None
     t0       = time.time()
 
-    print(f"CBRAM tip-growth  N={N}  T_MAX={T_MAX}")
-    print(f"  Main: up={P_UP} l={P_LEFT} r={P_RIGHT} dn={P_DOWN}")
-    print(f"  Branch: spawn={P_BRANCH_SPAWN} h_prob={BRANCH_H_PROB}"
-          f" max_len={BRANCH_MAX_LEN} max_br={MAX_BRANCHES}")
+    print(f"CBRAM field-guided tip growth  N={N}  T_MAX={T_MAX}")
+    print(f"  field_strength={FIELD_STRENGTH}  base_up={BASE_P_UP}"
+          f"  branch_prob={P_BRANCH_SPAWN}  max_branches={MAX_BRANCHES}")
 
     for t in range(T_MAX):
-        sigma, tips, b, n_br = grow_step(tips, sigma, rng, n_br)
+        V                    = solve_poisson(V, sigma, n=JACOBI_ITERS)
+        ion                  = drift_diffusion(ion, sigma, V)
+        sigma, tips, b, n_br = grow_step(tips, sigma, V, rng, n_br)
 
         if b and not bridged:
             bridged  = True
@@ -266,61 +306,61 @@ def run(save_gif=False):
             print(f"  *** BRIDGED t={t}  ({time.time()-t0:.1f}s) ***")
 
         if t % FRAME_EVERY == 0:
-            V = solve_poisson(V, sigma)
-            frames.append((sigma.copy(), V.copy(), t))
+            frames.append((sigma.copy(), V.copy(), ion.copy(), t))
             nm = int(np.sum(sigma >= BRIGHT))
-            print(f"  t={t:5d}  metal={nm:5d}  tips={len(tips):3d}  "
-                  f"{'BRIDGED' if bridged else '      '}  {time.time()-t0:.1f}s")
+            print(f"  t={t:5d}  metal={nm:5d}  tips={len(tips):2d}"
+                  f"  {'BRIDGED' if bridged else '      '}  {time.time()-t0:.1f}s")
 
-        if bridged and t > t_bridge + 200:
-            break
-        if not tips:          # all tips dead
+        if bridged:
             break
 
     V = solve_poisson(V, sigma, n=300)
-    frames.append((sigma.copy(), V.copy(), t))
+    frames.append((sigma.copy(), V.copy(), ion.copy(), t))
     print(f"Done {time.time()-t0:.1f}s  ({len(frames)} frames)")
 
     tot, gl, m = grade(sigma)
     print()
-    print("="*52)
+    print("=" * 52)
     print(f"  Grade: {tot}/100  →  {gl}")
     print(f"  Bridging   {m['sb']:2d}/30  bridged={m['bridged']}  path={m['pl']}")
     print(f"  Narrowness {m['sn']:2d}/25  {100*m['frac']:.3f}% bright")
     print(f"  Aspect     {m['sa']:2d}/20  ratio={m['ar']:.1f}")
     print(f"  Tortuosity {m['st']:2d}/15  ratio={m['tort']:.2f}")
     print(f"  Branches   {m['sbr']:2d}/10  {m['junc']} junctions")
-    print("="*52)
+    print("=" * 52)
 
     outdir = os.path.dirname(os.path.abspath(__file__))
     bp = os.path.join(outdir, "sigma_final_python.bin")
     save_binary(sigma, bp)
     print(f"  Binary → {bp}")
 
-    plt.rcParams.update({"figure.facecolor":"#0a0a12","text.color":"white",
-                          "axes.facecolor":"#050508","axes.labelcolor":"white"})
-    fig, axes = plt.subplots(1,3,figsize=(15,6))
+    plt.rcParams.update({"figure.facecolor": "#0a0a12", "text.color": "white",
+                         "axes.facecolor": "#050508", "axes.labelcolor": "white"})
+    fig, axes = plt.subplots(1, 4, figsize=(20, 6))
     fig.patch.set_facecolor("#0a0a12")
 
-    render(fig, axes, sigma, V, frames[-1][2], bridged)
+    s, v, i, tt = frames[-1]
+    render(fig, axes, s, v, i, tt, bridged)
     png = os.path.join(outdir, "filament_final.png")
     fig.savefig(png, dpi=150, bbox_inches="tight", facecolor="#0a0a12")
     print(f"  PNG    → {png}")
 
-    if save_gif and len(frames)>1:
+    if save_gif and len(frames) > 1:
         gif = os.path.join(outdir, "filament_animation.gif")
         print(f"  Saving GIF ({len(frames)} frames)…")
-        def _upd(i):
-            s,vv,tt = frames[i]
-            render(fig, axes, s, vv, tt, bridged and tt>=(t_bridge or T_MAX))
+        def _upd(idx):
+            s, vv, ii, tt = frames[idx]
+            render(fig, axes, s, vv, ii, tt,
+                   bridged and tt >= (t_bridge or T_MAX))
         ani = animation.FuncAnimation(fig, _upd, frames=len(frames),
                                       interval=100, blit=False)
         ani.save(gif, writer="pillow", fps=8,
-                 savefig_kwargs={"facecolor":"#0a0a12"})
+                 savefig_kwargs={"facecolor": "#0a0a12"})
         print(f"  GIF    → {gif}")
 
     plt.close(fig)
     return tot, gl
+
 
 if __name__ == "__main__":
     run(save_gif="--gif" in sys.argv)
