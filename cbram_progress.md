@@ -105,3 +105,27 @@ integer math → bit-identity holds).
 
 (Red-Black Gauss-Seidel was considered and dropped — it reads updated values mid-sweep, so it
 cannot be bit-identical to the Jacobi baseline.)
+
+### Visualization
+
+`dbm_stage0.cpp` dumps per-frame V+σ binaries to `frames_stage0/frame_NNNNNN_{V,S}.bin`
+(every `FRAME_INTERVAL` growth steps, plus a final frame on the bridged state).
+`python_imp/render_dbm_video.py` reads the pairs and encodes a 3-panel MP4 — σ (filament) |
+φ (Jacobi solve) | |∇φ| (drives growth):
+
+```bash
+cd build && ./cbram_stage0 200                     # writes frames_stage0/*.bin
+cd ../python_imp && python3 render_dbm_video.py 200 ../build/frames_stage0 filament_stage0.mp4
+```
+
+Output `python_imp/filament_stage0.mp4` (1920×720, 295 frames, ~10 s @ 30 fps).
+(Bump `FRAME_INTERVAL` in `physics_dbm.h` for large-N perf runs — frame I/O is ~160 KB/field/frame.)
+
+### Determinism (verified)
+
+Independent runs at N=200 are bit-for-bit reproducible — `V_final`, `sigma_final`, and all 590
+frame files are byte-identical across runs (`diff -rq` clean, matching md5s). Sources are all
+deterministic: fixed-seed `xorshift64`, row-major candidate order, pure `__int128` integer pick,
+integer Jacobi, single-threaded, no float in the compute path. This is the reproducibility every
+optimization stage must preserve; the stage0-vs-stageN bit-identity gate (`run.sh` `cmp`) builds
+on it. The C++ is intentionally *not* bit-identical to the Python float ground truth.

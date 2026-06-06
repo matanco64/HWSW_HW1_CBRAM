@@ -194,3 +194,15 @@ Log of prompts used throughout this project, as required by the assignment.
 **Tool:** Claude Code (claude-opus-4-8)
 **Decisions:** Q16.16 fixed-point everywhere → optimization stages stay bit-identical (`run.sh` `cmp` gate preserved). RB-GS **dropped** once it became clear it uses updated values mid-sweep and so cannot be bit-identical to the Jacobi baseline.
 **Output:** Archived old continuum C++ to `old_cpp/`. New `physics_dbm.h` + `dbm_stage0.cpp` (naive AoS `struct Cell{int32 V,metal}`, ~50% cache-line use; warm-started Jacobi hot loop; full-`__int128` V^3 weighted pick to avoid fixed-point underflow near the cathode). Wired `cbram_stage0` to it in `build.sh`/`CMakeLists.txt`. Result: **90/100 A** at N=200 (bridged step 588, 1.5% bright), byte-identical `V_final` across runs. Future ladder (documented): SoA → cache blocking/time-skewing → OpenMP, all bit-identical Jacobi.
+
+### Prompt 23 — 3-panel growth video (Matan)
+> "I would like to maybe create a video from it with 3 panels so generate accordingly"
+
+**Tool:** Claude Code (claude-opus-4-8)
+**Output:** Changed `dbm_stage0.cpp` per-frame output from a σ-only PPM to raw V+σ binaries (`frames_stage0/frame_NNNNNN_{V,S}.bin`), since the φ and |∇φ| panels need the potential field; always dumps a final frame on the bridged state. New `python_imp/render_dbm_video.py` reads the frame pairs, renders σ | φ | |∇φ|, and encodes to MP4 via ffmpeg (|∇φ| scale fixed from the final frame to avoid flicker). Produced `python_imp/filament_stage0.mp4` (1920×720, 295 frames, ~10 s @ 30 fps). Note: old `make_video.sh` (globs `*.ppm`) no longer applies to the DBM stages.
+
+### Prompt 24 — Verify bit-identical runs (Matan)
+> "I don't think 2 runs are bit identical, can you make sure of that?"
+
+**Tool:** Claude Code (claude-opus-4-8)
+**Output:** Verified determinism three ways across independent runs at N=200: `V_final` identical (md5 `1aa2bb34…`), `sigma_final` identical (md5 `693987aa…`), and all 590 frame files identical (`diff -rq` clean). Root cause confirmed deterministic: fixed-seed `xorshift64`, row-major candidate order, pure `__int128` integer pick, integer Jacobi, single-threaded, no float in the compute path. Clarified scope: this is same-stage/same-N reproducibility; the stage0-vs-stageN bit-identity gate is separate (`run.sh` `cmp`), and the C++ is intentionally not bit-identical to the Python float ground truth.
