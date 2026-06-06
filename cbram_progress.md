@@ -58,3 +58,50 @@ stripe instead of narrow fingers. No bridge, no vertical structure.
 rows where σ is highest, the lateral flux overwhelms the downward drift at early timesteps, locking
 ions into a horizontal band. Fix 2 (stochastic deposition) and Fix 4 (tip-only growth) should
 counteract this by localizing sigma growth to narrow tips rather than the whole band.
+
+---
+
+## Session 4 — Model pivot: Dielectric Breakdown Model (DBM)
+
+The continuum drift-diffusion line above topped out at 30/100 (a saturated blob, never narrow).
+We abandoned it for the **Dielectric Breakdown Model**: grow a metallic cluster one cell at a
+time; each step solve Laplace (cluster pinned to cathode V=0, anode at V_APPLIED) and add one
+cluster-adjacent empty cell with probability ∝ V^η. One knob, η, dials morphology
+(0→bush, 1→branched, large→needle).
+
+### Python ground truth (`python_imp/cbram_dbm.py`)
+
+| η | Bridging | Narrow | Aspect | Tortuous | Branches | Total | Grade |
+|---|---|---|---|---|---|---|---|
+| 1 | 30/30 | 12/25 (8.1%) | 0/20 (1.9) | 10/15 | 10/10 | 62 | C |
+| 2 | 30/30 | — | — | — | — | 85 | B |
+| **3** | **30/30** | **25/25 (1.2%)** | **20/20 (6.8)** | **10/15 (1.33)** | **10/10** | **95** | **A** |
+| 4 | — | — | — | — | — | 95 | A |
+| 6 | — | — | — | — | — | 90 | A |
+
+η=3 locked in as the sweet spot.
+
+### C++ naive baseline (`dbm_stage0.cpp`, Q16.16, N=200)
+
+| Step | Name | Key Change | Bridging | Narrow | Aspect | Tortuous | Branches | Total | Grade |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 | dbm_stage0 | naive AoS DBM, Q16.16, warm-started Jacobi | 30/30 | 25/25 (1.5%) | 15/20 (3.6) | 10/15 (1.34) | 10/10 (143) | **90/100** | A |
+
+Bridged at step 588 in ~0.76 s. Aspect is lower than Python's 6.8 (fixed-point V + xorshift PRNG
+differ from float/PCG64), but it is a clear A-grade vertical branched bolt. **`V_final` is
+byte-identical across runs** — the determinism the optimization ladder requires.
+
+Key port detail: a Q16.16 `V^3` underflows to 0 for the small V near the cathode and stalls
+growth, so the DBM weight is computed at full `__int128` precision (still pure deterministic
+integer math → bit-identity holds).
+
+### Optimization ladder (future, all bit-identical to stage 0 via `cmp V_final`)
+
+| Stage | File | Change | Cache story |
+|---|---|---|---|
+| 1 | `dbm_stage1.cpp` | AoS → SoA (separate `V[]`, `metal[]`) | Jacobi streams V at ~100% cache-line use (vs ~50% AoS) |
+| 2 | `dbm_stage2.cpp` | Cache blocking + time-skewing | March a tile through several of the 30 sweeps while hot in L1/L2 |
+| 3 | `dbm_stage3.cpp` | OpenMP | Double-buffer Jacobi is race-free → parallel + bit-identical |
+
+(Red-Black Gauss-Seidel was considered and dropped — it reads updated values mid-sweep, so it
+cannot be bit-identical to the Jacobi baseline.)

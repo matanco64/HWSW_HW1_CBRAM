@@ -159,3 +159,38 @@ Log of prompts used throughout this project, as required by the assignment.
 
 **Tool:** Claude Code (claude-sonnet-4-6)
 **Output:** Updated `prompts.md` with prompts 13–17. Next: plan the Python rewrite of `cbram_sim.py` with Option C physics, visual iteration before grader tuning.
+
+---
+
+## Session 4 — DBM pivot and naive C++ port (Matan)
+
+### Prompt 18 — Critique the Tetris approach (Matan)
+> "currently I am working on a Tetris inspired implementation of the sim cbram_tetris.py, I don't think it works well enough … what do you think I should change?"
+
+**Tool:** Claude Code (claude-opus-4-8)
+**Output:** Ran it (12/100 F) — diagnosed it as plain DLA producing a wide bush, widest at the feeding (anode) side, never bridging. Root cause: ions deposit on first contact with the broad top surface before reaching the high-field tips. Recommended the Dielectric Breakdown Model ingredient — sticking probability ∝ (local field)^η — as the bush→bolt knob.
+
+### Prompt 19 — Implement field-gated tip-only sticking (Matan)
+> "Yes"
+
+**Tool:** Claude Code (claude-opus-4-8)
+**Output:** Replaced the additive `field_factor` / neighbor-count sticking in `cbram_tetris.py` with a field-gated power-law rule (`P ∝ (|∇V|/E_REF)^ETA`, hard threshold below `E_STICK_MIN`). The fan collapsed (narrowness 0.1%) but growth stalled at 41 cells (25/100 F) — a documented dead-end. Concluded particle DLA is the wrong substrate.
+
+### Prompt 20 — Switch to direct DBM, minimal and clean (Matan)
+> "Maybe direct DBM is the correct approach here and let's drop the particles entirely, Let's maybe make it in a new file entirely, with as little as code as possible, and clean as possible"
+
+**Tool:** Claude Code (claude-opus-4-8)
+**Output:** Wrote `python_imp/cbram_dbm.py` (~95 lines): grow the metallic cluster one cell at a time; each step solve Laplace (cluster pinned to V=0, anode at V_APPLIED), add one cluster-adjacent empty cell with probability ∝ V^η. η-sweep: 1→62, 2→85, **3→95 (A)**, 4→95, 6→90. Locked η=3. The Jacobi field is genuinely load-bearing (drives every growth decision).
+
+### Prompt 21 — Restore the field panels (Matan)
+> "what about the third panel … I think it is nice to see them since this is what Our jacobi actually solves for"
+
+**Tool:** Claude Code (claude-opus-4-8)
+**Output:** Final figure is 3 panels — σ (filament), φ (Jacobi solve), |∇φ| (drives growth, glows at the leading tip).
+
+### Prompt 22 — Log prompts + plan the naive C++ port (Matan)
+> "Let's log the prompts and Let's plan the move to the naive.cpp implementation … as naive as possible in terms of caches … plan for future improvements like cache optimization and multiprocessing and I also read about Red-Black Gauss-Seidel solver"
+
+**Tool:** Claude Code (claude-opus-4-8)
+**Decisions:** Q16.16 fixed-point everywhere → optimization stages stay bit-identical (`run.sh` `cmp` gate preserved). RB-GS **dropped** once it became clear it uses updated values mid-sweep and so cannot be bit-identical to the Jacobi baseline.
+**Output:** Archived old continuum C++ to `old_cpp/`. New `physics_dbm.h` + `dbm_stage0.cpp` (naive AoS `struct Cell{int32 V,metal}`, ~50% cache-line use; warm-started Jacobi hot loop; full-`__int128` V^3 weighted pick to avoid fixed-point underflow near the cathode). Wired `cbram_stage0` to it in `build.sh`/`CMakeLists.txt`. Result: **90/100 A** at N=200 (bridged step 588, 1.5% bright), byte-identical `V_final` across runs. Future ladder (documented): SoA → cache blocking/time-skewing → OpenMP, all bit-identical Jacobi.

@@ -15,8 +15,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS}")
 add_library(cbram_io STATIC io.cpp)
 target_include_directories(cbram_io PUBLIC ${CMAKE_SOURCE_DIR})
 
-# ── Stage 0: AoS naive ────────────────────────────────────────────────────────
-add_executable(cbram_stage0 naive.cpp)
+# ── Stage 0: DBM AoS naive ────────────────────────────────────────────────────
+add_executable(cbram_stage0 dbm_stage0.cpp)
 target_link_libraries(cbram_stage0 PRIVATE cbram_io)
 
 # ── Stage 1: Struct of Arrays ─────────────────────────────────────────────────
@@ -33,12 +33,6 @@ target_link_libraries(cbram_stage0 PRIVATE cbram_io)
 # TODO: uncomment when opt3_omp.cpp is written
 # add_executable(cbram_stage3 opt3_omp.cpp)
 # target_link_libraries(cbram_stage3 PRIVATE cbram_io OpenMP::OpenMP_CXX)
-
-# ── Physics-improvement series ───────────────────────────────────────────────
-if(EXISTS "${CMAKE_SOURCE_DIR}/improved.cpp")
-    add_executable(cbram_improved improved.cpp)
-    target_link_libraries(cbram_improved PRIVATE cbram_io)
-endif()
 
 # ── Convenience target: build all stages ──────────────────────────────────────
 # TODO: add cbram_stage1 cbram_stage2 cbram_stage3 once their sources exist

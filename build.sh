@@ -33,7 +33,7 @@ build_stage() {
     echo "OK"
 }
 
-build_stage naive.cpp        cbram_stage0
+build_stage dbm_stage0.cpp   cbram_stage0
 build_stage opt1_soa.cpp     cbram_stage1
 build_stage opt2_blocked.cpp cbram_stage2
 build_stage opt3_omp.cpp     cbram_stage3 "-fopenmp"
