@@ -68,6 +68,21 @@ SIGMA_GROWTH_CONT = 0.5    # deposit probability scale for continuum mode
 E_FIELD_THRESH    = 0.008  # min downward E field at candidate = 1.6× background (0.005)
                            # Selects tip where V drops sharply into the metallic region
 
+# ── Tetris ion model parameters ───────────────────────────────────────────────
+# Active only with --tetris flag.
+# Ions are discrete particles released from the anode, drifting downward
+# guided by the Jacobi V field, and attaching stochastically to existing metal.
+# "Tip thinner than base" emerges because early ions travel farther (scatter wide →
+# thick base) while later ions travel a short distance to the rising tip (less scatter
+# → thin tip). Field enhancement at the tip concentrates arriving ions there.
+MAX_IONS        = 8     # max simultaneous drifting ion particles
+SPAWN_INTERVAL  = 3     # release one new ion every N timesteps
+STICK_PROB      = 0.15  # probability of attaching when adjacent to metal
+BASE_P_DOWN_ION = 0.60  # base downward probability (ions drift toward cathode)
+BASE_P_LAT_ION  = 0.18  # base lateral probability (thermal diffusion sideways)
+BASE_P_UP_ION   = 0.04  # rare upward step (diffusion against drift)
+FIELD_STR_ION   = 20.0  # how strongly the local E field biases each step
+
 # ── Colormap ──────────────────────────────────────────────────────────────────
 _cbram_cmap = LinearSegmentedColormap.from_list("cbram", [
     (0.00, (0.02, 0.02, 0.06)),
@@ -298,12 +313,82 @@ def grow_step(tips, sigma, V, rng, n_br):
 
 # ── Save binary ───────────────────────────────────────────────────────────────
 
+def spawn_ion(V, rng):
+    """Release one ion at row 1, column biased toward high downward E field."""
+    E_col = np.maximum(V[1, 1:-1] - V[2, 1:-1], 0.0)
+    total = E_col.sum()
+    p     = E_col / total if total > 1e-10 else np.ones(N - 2) / (N - 2)
+    c     = int(rng.choice(np.arange(1, N - 1), p=p))
+    return [1, c]
+
+
+_BASE_ION = np.array([BASE_P_UP_ION, BASE_P_LAT_ION, BASE_P_LAT_ION, BASE_P_DOWN_ION])
+
+def step_ions(ions, sigma, V, rng, t):
+    """
+    Advance every active ion one step, handle stochastic attachment, spawn new ions.
+
+    Each ion at (r,c):
+      1. If adjacent to a metallic cell and rng < STICK_PROB → deposit, remove ion.
+      2. Otherwise move one step using field-biased random walk (4-connected).
+      3. If ion exits the interior → lost, remove.
+
+    Direction bias: same formula as grow_step() but with BASE_P_DOWN_ION dominant
+    (ions drift toward the cathode, not upward like the filament tip).
+    The local E field at each step further biases toward high-gradient directions,
+    concentrating ions at the filament tip where field is enhanced.
+    """
+    metal      = sigma >= BRIGHT
+    ions_out   = []
+    deposited  = []
+
+    for ion in ions:
+        r, c = ion
+
+        # Check 4-connected adjacency to any metallic cell
+        adj = (
+            (r > 0   and metal[r-1, c]) or
+            (r < N-1 and metal[r+1, c]) or
+            (c > 0   and metal[r, c-1]) or
+            (c < N-1 and metal[r, c+1])
+        )
+        if adj and rng.random() < STICK_PROB:
+            deposited.append((r, c))
+            continue   # ion is consumed — not added to ions_out
+
+        # Field-biased walk (same E formula as grow_step)
+        E = np.array([
+            V[r-1, c] - V[r, c] if r > 1   else 0.0,
+            V[r, c-1] - V[r, c] if c > 1   else 0.0,
+            V[r, c+1] - V[r, c] if c < N-2 else 0.0,
+            V[r+1, c] - V[r, c] if r < N-2 else 0.0,
+        ])
+        w     = _BASE_ION + FIELD_STR_ION * np.maximum(E, 0.0)
+        w    /= w.sum()
+        cumul = np.cumsum(w)
+        idx   = int(np.searchsorted(cumul, rng.random()))
+
+        nr = max(1, min(N-2, r + int(_DR[idx])))
+        nc = max(1, min(N-2, c + int(_DC[idx])))
+
+        # Keep ion only if it's inside the interior and not already metallic
+        if not metal[nr, nc]:
+            ions_out.append([nr, nc])
+        # else: blocked by metal but didn't stick → ion lost (absorbed into filament)
+
+    # Spawn a fresh ion if below cap and on schedule
+    if t % SPAWN_INTERVAL == 0 and len(ions_out) < MAX_IONS:
+        ions_out.append(spawn_ion(V, rng))
+
+    return ions_out, deposited
+
+
 def save_binary(sigma, path):
     (sigma * 65536).astype(np.int32).tofile(path)
 
 # ── Render — 4 panels: sigma, V, |∇V|, ion ───────────────────────────────────
 
-def render(fig, axes, sigma, V, ion, t, bridged):
+def render(fig, axes, sigma, V, ion, t, bridged, active_ions=None):
     ax_f, ax_v, ax_e, ax_i = axes
     for ax in axes:
         ax.clear()
@@ -351,11 +436,17 @@ def render(fig, axes, sigma, V, ion, t, bridged):
     ax_i.set_facecolor("#050508"); ax_i.tick_params(colors="gray", labelsize=6)
     for sp in ax_i.spines.values(): sp.set_color("#333")
 
+    # Overlay active Tetris ion positions as bright cyan dots on Panel 4
+    if active_ions:
+        ir = [p[0] for p in active_ions]
+        ic = [p[1] for p in active_ions]
+        ax_i.scatter(ic, ir, s=25, c="cyan", alpha=0.9, linewidths=0, zorder=4)
+
     fig.tight_layout(pad=1.0)
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def run(save_gif=False, continuum=False):
+def run(save_gif=False, continuum=False, tetris=False):
     rng = np.random.default_rng(RNG_SEED)
 
     sigma = np.full((N, N), SIGMA_LOW)
@@ -364,15 +455,20 @@ def run(save_gif=False, continuum=False):
 
     # Single seed at cathode center
     sigma[N-2, N // 2] = SIGMA_MAX
-    tips = [(N-2, N // 2)]
-    n_br = 0
+    tips        = [(N-2, N // 2)]
+    n_br        = 0
+    active_ions = []   # Tetris mode: drifting ion particles
 
     frames   = []
     bridged  = False
     t_bridge = None
     t0       = time.time()
 
-    if continuum:
+    if tetris:
+        print(f"CBRAM TETRIS ION mode  N={N}  T_MAX={T_MAX}")
+        print(f"  max_ions={MAX_IONS}  spawn_every={SPAWN_INTERVAL}"
+              f"  stick_prob={STICK_PROB}  field_str={FIELD_STR_ION}")
+    elif continuum:
         print(f"CBRAM CONTINUUM mode  N={N}  T_MAX={T_MAX}")
         print(f"  decay={ION_DECAY}  E_field_thresh={E_FIELD_THRESH}"
               f"  deposit_scale={SIGMA_GROWTH_CONT}")
@@ -385,9 +481,14 @@ def run(save_gif=False, continuum=False):
         V   = solve_poisson(V, sigma, n=JACOBI_ITERS)
         ion = drift_diffusion(ion, sigma, V, decay=ION_DECAY if continuum else 0.0)
 
-        if continuum:
+        if tetris:
+            active_ions, deposited = step_ions(active_ions, sigma, V, rng, t)
+            for (r, c) in deposited:
+                sigma[r, c] = SIGMA_MAX
+            b = bool(np.any(sigma[1, 1:-1] >= BRIGHT))
+        elif continuum:
             sigma, deposited = stochastic_deposit_je(ion, sigma, V, rng)
-            ion[deposited]   = ION_LOW     # consume ions at deposition sites
+            ion[deposited]   = ION_LOW
             b = bool(np.any(sigma[1, 1:-1] >= BRIGHT))
         else:
             sigma, tips, b, n_br = grow_step(tips, sigma, V, rng, n_br)
@@ -398,9 +499,13 @@ def run(save_gif=False, continuum=False):
             print(f"  *** BRIDGED t={t}  ({time.time()-t0:.1f}s) ***")
 
         if t % FRAME_EVERY == 0:
-            frames.append((sigma.copy(), V.copy(), ion.copy(), t))
+            frames.append((sigma.copy(), V.copy(), ion.copy(), t,
+                           list(active_ions) if tetris else []))
             nm = int(np.sum(sigma >= BRIGHT))
-            if continuum:
+            if tetris:
+                print(f"  t={t:5d}  metal={nm:5d}  ions={len(active_ions):2d}"
+                      f"  {'BRIDGED' if bridged else '      '}  {time.time()-t0:.1f}s")
+            elif continuum:
                 print(f"  t={t:5d}  metal={nm:5d}"
                       f"  {'BRIDGED' if bridged else '      '}  {time.time()-t0:.1f}s")
             else:
@@ -411,7 +516,7 @@ def run(save_gif=False, continuum=False):
             break
 
     V = solve_poisson(V, sigma, n=300)
-    frames.append((sigma.copy(), V.copy(), ion.copy(), t))
+    frames.append((sigma.copy(), V.copy(), ion.copy(), t, []))
     print(f"Done {time.time()-t0:.1f}s  ({len(frames)} frames)")
 
     tot, gl, m = grade(sigma)
@@ -435,8 +540,8 @@ def run(save_gif=False, continuum=False):
     fig, axes = plt.subplots(1, 4, figsize=(20, 6))
     fig.patch.set_facecolor("#0a0a12")
 
-    s, v, i, tt = frames[-1]
-    render(fig, axes, s, v, i, tt, bridged)
+    s, v, i, tt, aions = frames[-1]
+    render(fig, axes, s, v, i, tt, bridged, active_ions=aions)
     png = os.path.join(outdir, "filament_final.png")
     fig.savefig(png, dpi=150, bbox_inches="tight", facecolor="#0a0a12")
     print(f"  PNG    → {png}")
@@ -445,9 +550,10 @@ def run(save_gif=False, continuum=False):
         gif = os.path.join(outdir, "filament_animation.gif")
         print(f"  Saving GIF ({len(frames)} frames)…")
         def _upd(idx):
-            s, vv, ii, tt = frames[idx]
+            s, vv, ii, tt, aions = frames[idx]
             render(fig, axes, s, vv, ii, tt,
-                   bridged and tt >= (t_bridge or T_MAX))
+                   bridged and tt >= (t_bridge or T_MAX),
+                   active_ions=aions)
         ani = animation.FuncAnimation(fig, _upd, frames=len(frames),
                                       interval=100, blit=False)
         ani.save(gif, writer="pillow", fps=8,
@@ -459,4 +565,8 @@ def run(save_gif=False, continuum=False):
 
 
 if __name__ == "__main__":
-    run(save_gif="--gif" in sys.argv, continuum="--continuum" in sys.argv)
+    run(
+        save_gif  = "--gif"       in sys.argv,
+        continuum = "--continuum" in sys.argv,
+        tetris    = "--tetris"    in sys.argv,
+    )
