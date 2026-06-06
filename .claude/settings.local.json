@@ -8,7 +8,8 @@
       "Bash(echo \"exit: $?\")",
       "Bash(python3 -c \"import numpy; import matplotlib; print\\('numpy', numpy.__version__, 'matplotlib', matplotlib.__version__\\)\")",
       "Bash(python3 cbram_sim.py)",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(timeout 300 python3 cbram_tetris.py)"
     ]
   }
 }
