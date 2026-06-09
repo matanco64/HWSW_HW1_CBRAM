@@ -26,16 +26,30 @@ struct Cell {
     int32_t metal;   // 1 = part of the filament, 0 = electrolyte
 };
 
-// Re-impose the boundary conditions after a Jacobi sweep.
-static void apply_boundary(std::vector<Cell>& grid, int N) {
+// Fixed conditions on the grid edges: Dirichlet anode/cathode rows, Neumann
+// (insulating) side walls. O(N) — touches only the border, negligible cost.
+static void apply_edges(std::vector<Cell>& grid, int N) {
     for (int c = 0; c < N; ++c) grid[c].V = V_APPLIED;              // anode (row 0)
     for (int c = 0; c < N; ++c) grid[(N - 1) * N + c].V = 0;        // cathode (row N-1)
     for (int r = 0; r < N; ++r) {                                   // insulating side walls
         grid[r * N].V         = grid[r * N + 1].V;
         grid[r * N + (N - 1)].V = grid[r * N + (N - 2)].V;
     }
-    for (size_t i = 0; i < grid.size(); ++i)                        // cluster ≡ cathode (V=0)
+}
+
+// Internal Dirichlet condition: pin every metallic (filament) cell to the
+// cathode potential V=0. O(N²) — a full-grid scan re-run on EVERY Jacobi
+// iteration, and in this AoS layout each check pulls a whole 8-byte Cell to
+// read one flag. This is what dominates apply_boundary in the profile.
+static void pin_cluster(std::vector<Cell>& grid) {
+    for (size_t i = 0; i < grid.size(); ++i)
         if (grid[i].metal) grid[i].V = 0;
+}
+
+// Re-impose the boundary conditions after a Jacobi sweep.
+static void apply_boundary(std::vector<Cell>& grid, int N) {
+    apply_edges(grid, N);
+    pin_cluster(grid);
 }
 
 // One Jacobi sweep of Laplace: V_new = (V_N + V_E + V_S + V_W) / 4.
@@ -59,12 +73,20 @@ static __int128 rand_below(Rng& rng, __int128 n) {
 
 // ── Per-step phases (split out so perf can charge time to each) ──────────────
 
+// Seed the write buffer from the read buffer before a sweep. In this AoS layout
+// the WHOLE Cell (V *and* metal) is copied, even though Jacobi only writes V —
+// the metal copy is pure AoS tax that SoA eliminates (separate metal[] array,
+// never copied during the solve). Shows up as a fat memmove in the profile.
+static void copy_grid(const std::vector<Cell>& src, std::vector<Cell>& dst) {
+    dst = src;
+}
+
 // Phase 1: warm-started Jacobi solve of the Laplace potential for the current
 // cluster. JACOBI_ITERS double-buffered sweeps; never reset between steps.
 static void solve_potential(std::vector<Cell>& grid,
                             std::vector<Cell>& grid_next, int N) {
     for (int k = 0; k < JACOBI_ITERS; ++k) {
-        grid_next = grid;
+        copy_grid(grid, grid_next);
         jacobi_sweep(grid, grid_next, N);
         apply_boundary(grid_next, N);
         std::swap(grid, grid_next);
