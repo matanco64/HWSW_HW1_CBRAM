@@ -15,6 +15,13 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.colors import LinearSegmentedColormap
 
+# Point matplotlib at the bundled ffmpeg from imageio-ffmpeg (no sudo needed)
+try:
+    import imageio_ffmpeg
+    matplotlib.rcParams["animation.ffmpeg_path"] = imageio_ffmpeg.get_ffmpeg_exe()
+except ImportError:
+    pass
+
 N          = int(sys.argv[1]) if len(sys.argv) > 1 else 200
 frames_dir = sys.argv[2] if len(sys.argv) > 2 else "build/frames_stage0"
 out        = sys.argv[3] if len(sys.argv) > 3 else "filament_stage0.mp4"
