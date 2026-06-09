@@ -20,9 +20,8 @@ add_executable(cbram_stage0 dbm_stage0.cpp)
 target_link_libraries(cbram_stage0 PRIVATE cbram_io)
 
 # ── Stage 1: Struct of Arrays ─────────────────────────────────────────────────
-# TODO: uncomment when opt1_soa.cpp is written
-# add_executable(cbram_stage1 opt1_soa.cpp)
-# target_link_libraries(cbram_stage1 PRIVATE cbram_io)
+add_executable(cbram_stage1 dbm_stage1.cpp)
+target_link_libraries(cbram_stage1 PRIVATE cbram_io)
 
 # ── Stage 2: SoA + time skewing ───────────────────────────────────────────────
 # TODO: uncomment when opt2_blocked.cpp is written
@@ -37,7 +36,7 @@ target_link_libraries(cbram_stage0 PRIVATE cbram_io)
 # ── Convenience target: build all stages ──────────────────────────────────────
 # TODO: add cbram_stage1 cbram_stage2 cbram_stage3 once their sources exist
 add_custom_target(all_stages
-    DEPENDS cbram_stage0
+    DEPENDS cbram_stage0 cbram_stage1
     COMMENT "Building all available CBRAM simulation stages"
 )
 

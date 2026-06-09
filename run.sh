@@ -182,7 +182,7 @@ perf report -i "${RESULTS_DIR}/stage0.data" --stdio 2>/dev/null | head -30
 # ── 8. Diff summary ───────────────────────────────────────────────────────────
 echo ""
 echo "=== Source diffs between stages ==="
-for pair in "naive.cpp opt1_soa.cpp" "opt1_soa.cpp opt2_blocked.cpp" "opt2_blocked.cpp opt3_omp.cpp"; do
+for pair in "dbm_stage0.cpp dbm_stage1.cpp" "dbm_stage1.cpp dbm_stage2.cpp" "dbm_stage2.cpp dbm_stage3.cpp"; do
     a="${pair%% *}"
     b="${pair##* }"
     [[ -f "${SRCDIR}/${a}" && -f "${SRCDIR}/${b}" ]] || continue
