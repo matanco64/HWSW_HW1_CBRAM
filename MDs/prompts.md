@@ -206,3 +206,37 @@ Log of prompts used throughout this project, as required by the assignment.
 
 **Tool:** Claude Code (claude-opus-4-8)
 **Output:** Verified determinism three ways across independent runs at N=200: `V_final` identical (md5 `1aa2bb34…`), `sigma_final` identical (md5 `693987aa…`), and all 590 frame files identical (`diff -rq` clean). Root cause confirmed deterministic: fixed-seed `xorshift64`, row-major candidate order, pure `__int128` integer pick, integer Jacobi, single-threaded, no float in the compute path. Clarified scope: this is same-stage/same-N reproducibility; the stage0-vs-stageN bit-identity gate is separate (`run.sh` `cmp`), and the C++ is intentionally not bit-identical to the Python float ground truth.
+
+---
+
+## Session 5 — Flamegraph profiling and stage 0 refactor (Matan)
+
+### Prompt 25 — perf permission errors on the new flamegraph step (Matan)
+> "I have added flamegraph evaluation and originally perf didn't work because: 'Couldn't record kernel reference relocation symbol … Check /proc/kallsyms permission or run as root' … perf_event__synthesize_bpf_events: failed to synthesize bpf images …"
+
+**Tool:** Claude Code (claude-opus-4-8)
+**Output:** Identified the pasted errors as the *old* `perf record -g` invocation, not the user's new one. The kernel-relocation/`kallsyms` error comes from sampling kernel symbols — the user's switch to `-e cpu-clock:u` (user-space only) sidesteps it entirely (and removes the need for root); the `bpf images` line is harmless noise. Confirmed `--call-graph dwarf` is correct since `-O2` omits frame pointers. Flagged the real remaining issue: the run was N=200 (<1 s, captured 0.003 MB) — far too few samples for a meaningful graph; recommended profiling at a larger N (the `run.sh` header already says "tune for 10–30 s").
+
+### Prompt 26 — flamegraph still looks empty at N=500 (Matan)
+> "I added to the results/stage0_flamegraph.svg the svg, it is a bit empty, I have ran ./run 500"
+
+**Tool:** Claude Code (claude-opus-4-8)
+**Output:** Diagnosed the *real* cause: the graph was a single flat `main` bar, not sample-starved (N=500 gave 33 B cpu-clock units). `jacobi_sweep`/`apply_boundary` are `static` and **inlined into `main` at `-O2`** (confirmed via `nm` — symbols absent), so perf had nothing below `main`. Fix without changing codegen: added `-g` to `build.sh` + `CMakeLists.txt` (DWARF inline/line info, no codegen change — verified `.debug_info`/`.debug_line` present), and `--inline` to the `perf script` pipeline so inlined frames resolve to named layers.
+
+### Prompt 27 — split the per-step logic into functions + a no-frames flag + fix results dir (Matan)
+> "Maybe we should separate the code to more functions … do you have ideas on what to separate" / "maybe we should add an option to opt-out of the frame dropping (for the compute phase) … add the functions you suggested … in run.sh I changed the results dir and now it is not working"
+
+**Tool:** Claude Code (claude-opus-4-8)
+**Output:** Refactored `dbm_stage0.cpp`'s `main` into named per-step phases so `perf`/flamegraph can charge time to each: `solve_potential` (Jacobi), `collect_candidates` (O(N²) frontier scan), `pick_candidate` (`__int128` V³ pick), `snapshot_fields` + `write_frame` (output split into buffer-fill vs disk I/O). Added a `-n` flag that skips all per-frame dumps for compute-only profiling (still writes `V_final`/`sigma_final` for the cmp gate). Verified the refactor is **bit-identical** to the committed `V_final_stage0.bin` at N=500 (`cmp` clean) and that `-n` yields the same `V_final` with zero frame files. Fixed the `run.sh` results-dir bug: the user's `RESULTS_DIR="results"` was relative, so it resolved to `build/results` inside `(cd "$BUILD_DIR" …)` subshells but `./results` elsewhere — the `perf record .data` and the flamegraph `.svg` landed in different dirs. Changed to absolute `${SRCDIR}/results`.
+
+### Prompt 28 — enable perf for the non-root user (Matan)
+> "is there a way to make this user on this machine to be able to run perf"
+
+**Tool:** Claude Code (claude-opus-4-8)
+**Output:** Found the machine at `perf_event_paranoid=4` (blocks all unprivileged profiling) and `kptr_restrict=1` (cause of the `kallsyms` relocation warning). Gave two routes: (1) `sudo sysctl kernel.perf_event_paranoid=1 kernel.kptr_restrict=0` — temporary, or persisted via `/etc/sysctl.d/99-perf.conf` (recommended; standard developer-workstation setup, full call-graph flamegraphs, no `sudo` on `perf` itself); (2) `setcap cap_perfmon,cap_sys_ptrace,cap_syslog=ep` on the perf binary — with the caveat that Ubuntu/Debian `/usr/bin/perf` is often a shell wrapper, so `setcap` silently no-ops unless applied to the real ELF.
+
+### Prompt 29 — is `-n` actually used when profiling? (Matan)
+> "wait, when profiling do you use the -n you added"
+
+**Tool:** Claude Code (claude-opus-4-8)
+**Output:** Audited every binary invocation in `run.sh` and found `-n` was on *only* the flamegraph `perf record` — the `perf stat -r 3` ablation (the cache-miss/cycle numbers that *are* the SoA story), the stage-3 stat, and the thread-scaling sweep all ran *with* frame I/O, polluting their counts and shrinking the measured AoS→SoA improvement. Added `-n` to all three measurement sections; left `run_stage` (line 41) with frames since it generates the video frames and the `V_final` for the cmp gate. Net: every *measurement* now profiles the I/O-free compute path, while one *generation* pass keeps frames.
