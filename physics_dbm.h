@@ -31,7 +31,7 @@ static constexpr int32_t SIGMA_LOW = ONE / 100;     // electrolyte conductivity 
 static constexpr int32_t SIGMA_MAX = 20 * ONE;      // metallic conductivity (20.0)
 
 // Output cadence.
-static constexpr int FRAME_INTERVAL = 2;           // dump a PPM every N growth steps
+static constexpr int FRAME_INTERVAL = 40;           // dump a PPM every N growth steps
 
 // Multiply two Q16.16 values, result in Q16.16.
 inline int32_t q_mul(int32_t a, int32_t b) {
