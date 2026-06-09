@@ -8,7 +8,7 @@ set -euo pipefail
 SRCDIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${BUILD_DIR:-${SRCDIR}/build}"
 N="${1:-1024}"
-RESULTS_DIR="${BUILD_DIR}/results"
+RESULTS_DIR="results"
 
 mkdir -p "${RESULTS_DIR}"
 
@@ -142,7 +142,7 @@ fi
 # 3. Generate the Flamegraph
 echo "Generating Flamegraph..."
 (cd "${RESULTS_DIR}" && \
-    perf script -i stage0.data | \
+    perf script --inline -i stage0.data | \
     "${FLAMEGRAPH_DIR}/stackcollapse-perf.pl" | \
     "${FLAMEGRAPH_DIR}/flamegraph.pl" > stage0_flamegraph.svg)
 

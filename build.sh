@@ -7,7 +7,7 @@ SRCDIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${BUILD_DIR:-${SRCDIR}/build}"
 
 CXX="${CXX:-g++}"
-CXXFLAGS="-O2 -march=native -std=c++17 -Wall -Wno-unused-result -I${SRCDIR}"
+CXXFLAGS="-O2 -g -march=native -std=c++17 -Wall -Wno-unused-result -I${SRCDIR}"
 
 mkdir -p "${BUILD_DIR}"
 

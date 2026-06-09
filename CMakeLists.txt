@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Common flags for all stages — must be identical (except OpenMP on stage 3)
-set(COMMON_FLAGS "-O2 -march=native -Wall -Wno-unused-result")
+set(COMMON_FLAGS "-O2 -g -march=native -Wall -Wno-unused-result")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS}")
 
 # TODO: uncomment when cbram_stage3 is added

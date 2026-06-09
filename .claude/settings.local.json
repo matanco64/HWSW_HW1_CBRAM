@@ -12,7 +12,13 @@
       "Bash(timeout 300 python3 cbram_tetris.py)",
       "Bash(timeout 300 python3 cbram_dbm.py)",
       "Bash(python3 grade_filament.py python_imp/sigma_final_dbm.bin)",
-      "Bash(python3 cbram_dbm.py)"
+      "Bash(python3 cbram_dbm.py)",
+      "Bash(bash build.sh)",
+      "Bash(nm build/cbram_stage0)",
+      "Bash(perf record *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(perf script *)",
+      "Bash(readelf -S build/cbram_stage0)"
     ]
   }
 }
