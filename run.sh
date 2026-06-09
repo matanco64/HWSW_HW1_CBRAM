@@ -8,7 +8,7 @@ set -euo pipefail
 SRCDIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${BUILD_DIR:-${SRCDIR}/build}"
 N="${1:-1024}"
-RESULTS_DIR="results"
+RESULTS_DIR="${SRCDIR}/results"
 
 mkdir -p "${RESULTS_DIR}"
 
@@ -137,7 +137,7 @@ fi
 (cd "${BUILD_DIR}" && \
     perf record -e cpu-clock:u -F 999 --call-graph dwarf \
     -o "${RESULTS_DIR}/stage0.data" \
-    -- "${BUILD_DIR}/cbram_stage0" "${N}" -v)
+    -- "${BUILD_DIR}/cbram_stage0" "${N}" -v -n)
 
 # 3. Generate the Flamegraph
 echo "Generating Flamegraph..."

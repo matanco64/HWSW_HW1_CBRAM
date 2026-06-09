@@ -57,11 +57,90 @@ static __int128 rand_below(Rng& rng, __int128 n) {
     return (__int128)(r % (unsigned __int128)n);
 }
 
+// ── Per-step phases (split out so perf can charge time to each) ──────────────
+
+// Phase 1: warm-started Jacobi solve of the Laplace potential for the current
+// cluster. JACOBI_ITERS double-buffered sweeps; never reset between steps.
+static void solve_potential(std::vector<Cell>& grid,
+                            std::vector<Cell>& grid_next, int N) {
+    for (int k = 0; k < JACOBI_ITERS; ++k) {
+        grid_next = grid;
+        jacobi_sweep(grid, grid_next, N);
+        apply_boundary(grid_next, N);
+        std::swap(grid, grid_next);
+    }
+}
+
+// Phase 2: row-major scan for empty interior cells with ≥1 metal 4-neighbor.
+// O(N²) every step — a hidden cost that grows with the grid.
+static void collect_candidates(const std::vector<Cell>& grid, int N,
+                               std::vector<int>& cand) {
+    cand.clear();
+    for (int r = 1; r < N - 1; ++r) {
+        for (int c = 1; c < N - 1; ++c) {
+            int idx = r * N + c;
+            if (grid[idx].metal) continue;
+            if (grid[idx - N].metal || grid[idx + N].metal ||
+                grid[idx - 1].metal || grid[idx + 1].metal)
+                cand.push_back(idx);
+        }
+    }
+}
+
+// Phase 3: DBM rule — choose a candidate with probability ∝ V^ETA (=V^3).
+// Full-precision __int128 weight: a Q16.16 cube would underflow to 0 for the
+// small V near the cathode and stall growth.
+static int pick_candidate(const std::vector<Cell>& grid,
+                          const std::vector<int>& cand, Rng& rng) {
+    __int128 total = 0;
+    for (int idx : cand) {
+        int64_t v = grid[idx].V > 0 ? grid[idx].V : 0;
+        total += (__int128)v * v * v;
+    }
+    int chosen = cand.back();
+    if (total > 0) {
+        __int128 thr = rand_below(rng, total), acc = 0;
+        for (int idx : cand) {
+            int64_t v = grid[idx].V > 0 ? grid[idx].V : 0;
+            acc += (__int128)v * v * v;
+            if (thr < acc) { chosen = idx; break; }
+        }
+    }
+    return chosen;
+}
+
+// Phase 4a: copy the current V and σ fields into flat output buffers.
+static void snapshot_fields(const std::vector<Cell>& grid, int N,
+                            std::vector<int32_t>& V_buf,
+                            std::vector<int32_t>& sigma_buf) {
+    size_t nn = (size_t)N * N;
+    for (size_t i = 0; i < nn; ++i) {
+        V_buf[i]     = grid[i].V;
+        sigma_buf[i] = grid[i].metal ? SIGMA_MAX : SIGMA_LOW;
+    }
+}
+
+// Phase 4b: write one animation frame (V and σ) to disk. Pure I/O — skipped
+// entirely under -n so the compute profile isn't polluted by it.
+static void write_frame(int step, int N,
+                        const std::vector<int32_t>& V_buf,
+                        const std::vector<int32_t>& sigma_buf) {
+    char path[256];
+    snprintf(path, sizeof(path), "frames_stage0/frame_%06d_V.bin", step);
+    dump_binary(path, V_buf.data(), N);
+    snprintf(path, sizeof(path), "frames_stage0/frame_%06d_S.bin", step);
+    dump_binary(path, sigma_buf.data(), N);
+}
+
 int main(int argc, char* argv[]) {
     int N = DEFAULT_N;
     bool verbose = false;
+    bool dump_frames = true;   // -n disables per-frame dumps (compute-only profiling)
     for (int i = 1; i < argc; ++i) {
-        if (argv[i][0] == '-') { if (argv[i][1] == 'v') verbose = true; }
+        if (argv[i][0] == '-') {
+            if (argv[i][1] == 'v') verbose = true;
+            else if (argv[i][1] == 'n') dump_frames = false;
+        }
         else N = atoi(argv[i]);
     }
     size_t nn = (size_t)N * N;
@@ -80,87 +159,38 @@ int main(int argc, char* argv[]) {
     mkdir("frames_stage0", 0755);
     std::vector<int32_t> sigma_buf(nn), V_buf(nn);
     std::vector<int>     cand;              // candidate cell indices (row-major order)
-    char path[256];
 
     bool bridged = false;
     int  step    = 0;
     for (step = 0; step < (int)nn; ++step) {
-        // ── Hot loop: warm-started Jacobi solve of the potential ──
-        for (int k = 0; k < JACOBI_ITERS; ++k) {
-            grid_next = grid;
-            jacobi_sweep(grid, grid_next, N);
-            apply_boundary(grid_next, N);
-            std::swap(grid, grid_next);
-        }
+        solve_potential(grid, grid_next, N);       // phase 1: Jacobi (hot loop)
 
-        // ── Candidate sites: empty interior cells 4-adjacent to the cluster ──
-        cand.clear();
-        for (int r = 1; r < N - 1; ++r) {
-            for (int c = 1; c < N - 1; ++c) {
-                int idx = r * N + c;
-                if (grid[idx].metal) continue;
-                if (grid[idx - N].metal || grid[idx + N].metal ||
-                    grid[idx - 1].metal || grid[idx + 1].metal)
-                    cand.push_back(idx);
-            }
-        }
+        collect_candidates(grid, N, cand);         // phase 2: O(N²) frontier scan
         if (cand.empty()) break;
 
-        // ── DBM rule: pick one candidate with probability ∝ V^ETA (=V^3) ──
-        // Full-precision integer weight: a Q16.16 cube would underflow to 0 for
-        // the small V near the cathode and stall growth.
-        __int128 total = 0;
-        for (int idx : cand) {
-            int64_t v = grid[idx].V > 0 ? grid[idx].V : 0;
-            total += (__int128)v * v * v;
-        }
-        int chosen = cand.back();
-        if (total > 0) {
-            __int128 thr = rand_below(rng, total), acc = 0;
-            for (int idx : cand) {
-                int64_t v = grid[idx].V > 0 ? grid[idx].V : 0;
-                acc += (__int128)v * v * v;
-                if (thr < acc) { chosen = idx; break; }
-            }
-        }
+        int chosen = pick_candidate(grid, cand, rng);   // phase 3: V³ weighted pick
         grid[chosen].metal = 1;
 
         if (verbose && step % FRAME_INTERVAL == 0)
             fprintf(stderr, "\r  step %d  cells %d  tip_row %d   ",
                     step, step + 1, chosen / N);
 
-        if (step % FRAME_INTERVAL == 0) {
-            for (size_t i = 0; i < nn; ++i) {
-                V_buf[i]     = grid[i].V;
-                sigma_buf[i] = grid[i].metal ? SIGMA_MAX : SIGMA_LOW;
-            }
-            snprintf(path, sizeof(path), "frames_stage0/frame_%06d_V.bin", step);
-            dump_binary(path, V_buf.data(), N);
-            snprintf(path, sizeof(path), "frames_stage0/frame_%06d_S.bin", step);
-            dump_binary(path, sigma_buf.data(), N);
+        if (dump_frames && step % FRAME_INTERVAL == 0) {   // phase 4: output
+            snapshot_fields(grid, N, V_buf, sigma_buf);
+            write_frame(step, N, V_buf, sigma_buf);
         }
 
         if (chosen / N <= 1) { bridged = true; break; }   // reached the anode
     }
 
-    // Final frame so the video ends on the bridged filament.
-    for (size_t i = 0; i < nn; ++i) {
-        V_buf[i]     = grid[i].V;
-        sigma_buf[i] = grid[i].metal ? SIGMA_MAX : SIGMA_LOW;
-    }
-    snprintf(path, sizeof(path), "frames_stage0/frame_%06d_V.bin", step);
-    dump_binary(path, V_buf.data(), N);
-    snprintf(path, sizeof(path), "frames_stage0/frame_%06d_S.bin", step);
-    dump_binary(path, sigma_buf.data(), N);
-
     if (verbose)
         fprintf(stderr, "\n  %s at step %d\n",
                 bridged ? "Bridged" : "Stopped", step);
 
-    for (size_t i = 0; i < nn; ++i) {
-        V_buf[i]     = grid[i].V;
-        sigma_buf[i] = grid[i].metal ? SIGMA_MAX : SIGMA_LOW;
-    }
+    // Final state → buffers, used for both the closing frame and the dumps.
+    snapshot_fields(grid, N, V_buf, sigma_buf);
+    if (dump_frames)                                  // closing frame for the video
+        write_frame(step, N, V_buf, sigma_buf);
     dump_binary("V_final_stage0.bin", V_buf.data(), N);
     dump_binary("sigma_final_stage0.bin", sigma_buf.data(), N);
 

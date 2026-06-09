@@ -18,7 +18,11 @@
       "Bash(perf record *)",
       "Bash(echo \"exit=$?\")",
       "Bash(perf script *)",
-      "Bash(readelf -S build/cbram_stage0)"
+      "Bash(readelf -S build/cbram_stage0)",
+      "Bash(./cbram_stage0 200)",
+      "Bash(rm -rf frames_stage0)",
+      "Bash(./cbram_stage0 200 -n)",
+      "Bash(python3 -c \"import math; print\\('committed N =', int\\(math.isqrt\\(__import__\\('os'\\).path.getsize\\('V_final_stage0.bin'\\)//4\\)\\)\\)\")"
     ]
   }
 }
