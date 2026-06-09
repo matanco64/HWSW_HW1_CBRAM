@@ -120,13 +120,35 @@ if has_stage 3; then
     done
 fi
 
-# ── 7. Hotspot confirmation (stage 0) ────────────────────────────────────────
+# ?? 7. Hotspot confirmation & Flamegraph (stage 0) ???????????????????????????
 echo ""
-echo "=== Hotspot check (perf record on stage 0) ==="
+echo "=== Hotspot check & Flamegraph (perf record on stage 0) ==="
+
+# 1. Ensure FlameGraph tools are available
+FLAMEGRAPH_DIR="${SRCDIR}/FlameGraph"
+if [[ ! -d "${FLAMEGRAPH_DIR}" ]]; then
+    echo "Cloning FlameGraph repository..."
+    git clone https://github.com/brendangregg/FlameGraph.git "${FLAMEGRAPH_DIR}"
+fi
+
+# 2. Record with call-graphs, targeting only user-space (:u) to avoid kernel permission errors
+# -F 999 samples at 999 Hz.
+# --call-graph dwarf provides accurate stack traces for C/C++ binaries.
 (cd "${BUILD_DIR}" && \
-    perf record -g \
+    perf record -e cpu-clock:u -F 999 --call-graph dwarf \
     -o "${RESULTS_DIR}/stage0.data" \
-    "${BUILD_DIR}/cbram_stage0" "${N}" -v)
+    -- "${BUILD_DIR}/cbram_stage0" "${N}" -v)
+
+# 3. Generate the Flamegraph
+echo "Generating Flamegraph..."
+(cd "${RESULTS_DIR}" && \
+    perf script -i stage0.data | \
+    "${FLAMEGRAPH_DIR}/stackcollapse-perf.pl" | \
+    "${FLAMEGRAPH_DIR}/flamegraph.pl" > stage0_flamegraph.svg)
+
+echo "Flamegraph saved to: ${RESULTS_DIR}/stage0_flamegraph.svg"
+
+# Display a quick text summary
 perf report -i "${RESULTS_DIR}/stage0.data" --stdio 2>/dev/null | head -30
 
 # ── 8. Diff summary ───────────────────────────────────────────────────────────
