@@ -101,6 +101,34 @@ if has_stage 3; then
     cat "${RESULTS_DIR}/stage3.perf"
 fi
 
+# ── 5b. Topdown microarchitecture analysis ───────────────────────────────────
+# Where do the cycles actually go? Level-2 topdown splits Backend Bound into
+# Memory Bound vs Core Bound — the Memory-Bound % is the number that should
+# shrink after the SoA layout change, directly demonstrating the HW/SW insight.
+echo ""
+echo "=== Topdown analysis (frontend / backend / memory bound) ==="
+topdown_one() {
+    local stage=$1
+    has_stage "${stage}" || return 0
+    local out="${RESULTS_DIR}/stage${stage}.topdown"
+    echo ""
+    echo "--- Stage ${stage} ---"
+    if (cd "${BUILD_DIR}" && perf stat --topdown --td-level 2 \
+            -- "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n >/dev/null) 2> "${out}"; then
+        :
+    elif (cd "${BUILD_DIR}" && perf stat --topdown \
+            -- "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n >/dev/null) 2> "${out}"; then
+        :
+    else
+        echo "  (topdown not supported by this perf/CPU — skipping)" | tee "${out}"
+        return 0
+    fi
+    cat "${out}"
+}
+topdown_one 0
+topdown_one 1
+topdown_one 2
+
 # ── 6. Thread scaling sweep (stage 3) ────────────────────────────────────────
 if has_stage 3; then
     PHYS_CORES=$(lscpu | awk '/^Core\(s\) per socket/ {cores=$NF}
@@ -163,5 +191,12 @@ for pair in "naive.cpp opt1_soa.cpp" "opt1_soa.cpp opt2_blocked.cpp" "opt2_block
         "${SRCDIR}/${a}" "${SRCDIR}/${b}" | head -60 || true
     echo ""
 done
+
+# ── 9. Derived metrics summary (IPC, miss rates, MPKI, speedup vs stage 0) ────
+echo ""
+echo "=== Derived metrics summary ==="
+python3 "${SRCDIR}/perf_metrics.py" "${RESULTS_DIR}" || \
+    echo "  (perf_metrics.py failed — check the stage*.perf files)"
+echo ""
 
 echo "=== All done. Results in ${RESULTS_DIR}/ ==="

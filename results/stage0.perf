@@ -1,16 +1,26 @@
 
- Performance counter stats for '/root/HWSW_HW1_CBRAM/build/cbram_stage0 200' (3 runs):
+ Performance counter stats for '/home/matan-cohen/projects/HWSW_HW1_CBRAM/build/cbram_stage0 400 -n' (3 runs):
 
-        5045705694      cycles                                                        ( +-  0.21% )  (62.36%)
-       11243682959      instructions              #    2.23  insn per cycle           ( +-  0.01% )  (74.91%)
-          23505995      cache-references                                              ( +-  2.47% )  (74.90%)
-              8849      cache-misses              #    0.039 % of all cache refs      ( +- 90.86% )  (74.89%)
-        1792300029      L1-dcache-loads                                               ( +-  0.73% )  (75.01%)
-         275747125      L1-dcache-load-misses     #   15.61% of all L1-dcache accesses  ( +-  0.36% )  (75.20%)
-   <not supported>      LLC-loads                                                   
-   <not supported>      LLC-load-misses                                             
-        2454113161      dTLB-loads                                                    ( +-  0.47% )  (50.09%)
-             24195      dTLB-load-misses          #    0.00% of all dTLB cache accesses  ( +-  5.31% )  (49.91%)
+    17,910,169,966      cpu_atom/cycles/                                                        ( +-  2.44% )  (0.64%)
+    26,006,913,366      cpu_core/cycles/                                                        ( +-  0.14% )  (49.67%)
+    42,544,742,181      cpu_atom/instructions/                                                  ( +-  7.00% )  (0.64%)
+    95,943,443,698      cpu_core/instructions/                                                  ( +-  0.12% )  (59.62%)
+     1,297,582,234      cpu_atom/cache-references/                                              ( +-  9.61% )  (0.64%)
+     2,072,137,502      cpu_core/cache-references/                                              ( +-  1.88% )  (69.55%)
+       142,272,993      cpu_atom/cache-misses/                                                  ( +- 92.09% )  (0.64%)
+           875,696      cpu_core/cache-misses/                                                  ( +-  0.82% )  (79.49%)
+    14,282,418,628      cpu_atom/L1-dcache-loads/                                               ( +-  7.50% )  (0.64%)
+    29,408,756,122      cpu_core/L1-dcache-loads/                                               ( +-  0.11% )  (79.49%)
+   <not supported>      cpu_atom/L1-dcache-load-misses/                                       
+     1,168,854,532      cpu_core/L1-dcache-load-misses/                                         ( +-  0.11% )  (79.48%)
+        38,742,721      cpu_atom/LLC-loads/                                                     ( +- 15.90% )  (0.64%)
+        87,682,955      cpu_core/LLC-loads/                                                     ( +-  4.02% )  (79.48%)
+            81,184      cpu_atom/LLC-load-misses/                                               ( +- 86.74% )  (0.64%)
+            48,639      cpu_core/LLC-load-misses/                                               ( +-  2.96% )  (79.50%)
+    14,282,418,628      cpu_atom/dTLB-loads/                                                    ( +-  7.50% )  (0.64%)
+    29,389,898,230      cpu_core/dTLB-loads/                                                    ( +-  0.08% )  (39.76%)
+           259,682      cpu_atom/dTLB-load-misses/                                              ( +- 19.06% )  (0.64%)
+            17,314      cpu_core/dTLB-load-misses/                                              ( +- 16.04% )  (39.74%)
 
-            2.2472 +- 0.0504 seconds time elapsed  ( +-  2.24% )
+       6.672358237 +- 0.085161081 seconds time elapsed  ( +-  1.28% )
 
