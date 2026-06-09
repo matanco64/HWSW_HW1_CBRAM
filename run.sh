@@ -84,7 +84,7 @@ for stage in 0 1 2; do
     (cd "${BUILD_DIR}" && \
         perf stat -r 3 \
         -e "${PERF_EVENTS}" \
-        "${BUILD_DIR}/cbram_stage${stage}" "${N}" \
+        "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n \
         2> "${RESULTS_DIR}/stage${stage}.perf")
     cat "${RESULTS_DIR}/stage${stage}.perf"
 done
@@ -96,7 +96,7 @@ if has_stage 3; then
         OMP_PROC_BIND=close OMP_PLACES=cores \
         perf stat -r 3 \
         -e "${PERF_EVENTS}" \
-        "${BUILD_DIR}/cbram_stage3" "${N}" \
+        "${BUILD_DIR}/cbram_stage3" "${N}" -n \
         2> "${RESULTS_DIR}/stage3.perf")
     cat "${RESULTS_DIR}/stage3.perf"
 fi
@@ -114,7 +114,7 @@ if has_stage 3; then
         (cd "${BUILD_DIR}" && \
             OMP_NUM_THREADS=${T} OMP_PROC_BIND=close OMP_PLACES=cores \
             perf stat -r 3 -e cycles,instructions,LLC-load-misses \
-            "${BUILD_DIR}/cbram_stage3" "${N}" \
+            "${BUILD_DIR}/cbram_stage3" "${N}" -n \
             2> "${RESULTS_DIR}/stage3_t${T}.perf")
         grep "seconds time elapsed" "${RESULTS_DIR}/stage3_t${T}.perf" | head -1
     done
