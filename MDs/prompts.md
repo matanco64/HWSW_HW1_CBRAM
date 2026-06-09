@@ -240,3 +240,15 @@ Log of prompts used throughout this project, as required by the assignment.
 
 **Tool:** Claude Code (claude-opus-4-8)
 **Output:** Audited every binary invocation in `run.sh` and found `-n` was on *only* the flamegraph `perf record` — the `perf stat -r 3` ablation (the cache-miss/cycle numbers that *are* the SoA story), the stage-3 stat, and the thread-scaling sweep all ran *with* frame I/O, polluting their counts and shrinking the measured AoS→SoA improvement. Added `-n` to all three measurement sections; left `run_stage` (line 41) with frames since it generates the video frames and the `V_final` for the cmp gate. Net: every *measurement* now profiles the I/O-free compute path, while one *generation* pass keeps frames.
+
+### Prompt 30 — what perf outputs do we need beyond the flamegraph? (Matan)
+> "what options do we have to display the Results of perf, currently we are using only flamegraph right? … do we need other profiling or data" / "Yes add them"
+
+**Tool:** Claude Code (claude-opus-4-8)
+**Output:** Mapped the HW1 rubric: it explicitly asks for *"runtime, cache misses, CPU cycles"* and a before/after comparison — that's `perf stat`, the required deliverable; the flamegraph is a bonus that shows *where*. Confirmed `run.sh` already had the `perf stat -r 3` ablation. Added two things: (1) a **topdown pass** (`perf stat --topdown --td-level 2`, L1 fallback, guarded so an unsupported CPU can't abort the run) to expose the Memory-Bound % that should shrink with SoA; (2) **`perf_metrics.py`**, a post-processor that parses `results/stage*.perf` into a derived-metrics table (IPC, cache-miss%, L1/LLC-miss%, MPKI, dTLB%, mem-bound%) plus a speedup/delta comparison vs stage 0, written to `results/metrics.md`. Made the parser robust to hybrid-PMU split counters (sums `cpu_core/`+`cpu_atom/`) and to `-r N` `mean +- stddev` lines (fixed a bug where it grabbed the stddev as the elapsed time).
+
+### Prompt 31 — first optimization: AoS → SoA (Matan)
+> "Let's go and do the AoS to SoA optimization, our first optimization"
+
+**Tool:** Claude Code (claude-opus-4-8)
+**Output:** Wrote `dbm_stage1.cpp`. Two changes, both motivated by the stage-0 flamegraph: (1) `struct Cell{int32 V,metal}` → flat `int32_t V[]` + `uint8_t metal[]` so the Jacobi stencil streams a contiguous `int32` array (16 cells/line ~100% util vs 8 ~50%); (2) only `V` is double-buffered while `metal` is a single shared array — the cluster is fixed across all 30 sweeps, so the per-sweep full-grid copy (the ~20% `memmove` the flamegraph showed) is **eliminated**, and `pin_cluster` becomes a 1-byte/cell scan. Wired `cbram_stage1` into `build.sh`/`CMakeLists.txt` (renamed the planned `opt1_soa.cpp` → `dbm_stage1.cpp` for naming parity with stage 0; updated the `run.sh` diff pairs too). **Verified bit-identical** `V_final` and `sigma_final` vs stage 0 at N=200 and N=500. Wall-clock N=500 (compute-only): **13.5 s → 8.0 s ≈ 1.69×**.

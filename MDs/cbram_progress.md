@@ -95,16 +95,57 @@ Key port detail: a Q16.16 `V^3` underflows to 0 for the small V near the cathode
 growth, so the DBM weight is computed at full `__int128` precision (still pure deterministic
 integer math → bit-identity holds).
 
-### Optimization ladder (future, all bit-identical to stage 0 via `cmp V_final`)
+### Optimization ladder (all bit-identical to stage 0 via `cmp V_final`)
 
-| Stage | File | Change | Cache story |
-|---|---|---|---|
-| 1 | `dbm_stage1.cpp` | AoS → SoA (separate `V[]`, `metal[]`) | Jacobi streams V at ~100% cache-line use (vs ~50% AoS) |
-| 2 | `dbm_stage2.cpp` | Cache blocking + time-skewing | March a tile through several of the 30 sweeps while hot in L1/L2 |
-| 3 | `dbm_stage3.cpp` | OpenMP | Double-buffer Jacobi is race-free → parallel + bit-identical |
+| Stage | File | Change | Cache story | Status |
+|---|---|---|---|---|
+| 1 | `dbm_stage1.cpp` | AoS → SoA (separate `V[]`, `metal[]`) | Jacobi streams V at ~100% cache-line use (vs ~50% AoS) | **done ✓** |
+| 2 | `dbm_stage2.cpp` | Cache blocking + time-skewing | March a tile through several of the 30 sweeps while hot in L1/L2 | next |
+| 3 | `dbm_stage3.cpp` | OpenMP | Double-buffer Jacobi is race-free → parallel + bit-identical | future |
 
 (Red-Black Gauss-Seidel was considered and dropped — it reads updated values mid-sweep, so it
 cannot be bit-identical to the Jacobi baseline.)
+
+### Stage 1 — SoA (`dbm_stage1.cpp`)
+
+Two structural changes from stage 0, both motivated directly by the stage-0 flamegraph:
+
+1. **`struct Cell{int32 V,metal}` → flat `int32_t V[]` + `uint8_t metal[]`.** The Jacobi stencil
+   now streams a contiguous `int32` array — 16 values per 64-byte cache line (~100% utilization)
+   instead of 8 (~50%), because the interleaved `metal` field no longer rides along in cache.
+2. **Only `V` is double-buffered; `metal` is a single shared array, never copied.** The cluster is
+   fixed across all 30 Jacobi sweeps of a growth step, so there is nothing to copy. This deletes
+   the per-sweep `grid_next = grid` full-grid copy — the **~20% `memmove`** the stage-0 flamegraph
+   exposed — outright. `pin_cluster` also drops to a 1-byte/cell `uint8_t` scan.
+
+**Correctness:** `V_final_stage1.bin` and `sigma_final_stage1.bin` are byte-identical to stage 0 at
+N=200 and N=500 (`cmp` clean). Numerics, PRNG sequence, and candidate order are unchanged.
+
+**Result:** wall-clock at N=500 (compute-only, `-n`, median of 3): **13.5 s → 8.0 s ≈ 1.69× faster.**
+Full `perf stat` cache counters + the auto-generated comparison table come from `./run.sh 500`
+(IPC ↑, cache-miss% / MPKI / memory-bound% ↓ expected).
+
+### Profiling tooling (added this session)
+
+- **`run.sh` flamegraph** (`perf record -e cpu-clock:u -F 999 --call-graph dwarf` → FlameGraph):
+  needs `-g` in the build (added — DWARF info only, no codegen change) and `perf script --inline`
+  so the inlined per-phase functions resolve. Profiles the `-n` compute-only path.
+- **`-n` flag** on the binaries: skips all per-frame dumps so the profile/counters aren't polluted
+  by frame I/O. Used on every `perf` measurement in `run.sh` (the one frame-generating run keeps it
+  off for the video).
+- **`run.sh` topdown pass** (`perf stat --topdown --td-level 2`): the Memory-Bound % that should
+  shrink with SoA — the HW/SW-interplay evidence.
+- **`perf_metrics.py`**: parses `results/stage*.perf` into a derived-metrics table (IPC, cache-miss%,
+  L1/LLC-miss%, MPKI, dTLB%, mem-bound%) + a speedup/delta comparison vs stage 0, written to
+  `results/metrics.md`. Handles hybrid-PMU split counters and `-r N` mean/stddev parsing.
+- **Per-phase functions** in stage 0/1 (`solve_potential`, `jacobi_sweep`, `apply_edges`,
+  `pin_cluster`, `copy_grid` [stage 0 only], `collect_candidates`, `pick_candidate`,
+  `snapshot_fields`, `write_frame`) so the flamegraph charges time to each phase by name.
+
+### perf permissions (test machine)
+
+This machine needed `perf_event_paranoid` lowered from 4 → 1 and `kptr_restrict` 1 → 0 for the
+non-root user to run perf. Persisted in `/etc/sysctl.d/99-perf.conf` (survives reboot).
 
 ### Visualization
 

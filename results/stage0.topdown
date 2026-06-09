@@ -1,0 +1,12 @@
+
+ Performance counter stats for '/home/matan-cohen/projects/HWSW_HW1_CBRAM/build/cbram_stage0 500 -n':
+
+ %  tma_machine_clears %  tma_resource_bound  %  tma_memory_bound    %  tma_core_bound %  tma_light_operations %  tma_heavy_operations %  tma_fetch_latency %  tma_fetch_bandwidth %  tma_machine_clears %  tma_branch_mispredicts    %  tma_core_bound %  tma_branch_mispredicts %  tma_ifetch_latency %  tma_ifetch_bandwidth 
+                           0.0                           31.5                                                                    32.0                         16.0                                                     48.8                              0.4                          0.7                             0.8                            0.0                                1.2                                                                          0.1                                2.2                            4.0                                                                        20.8 
+
+      12.273293470 seconds time elapsed
+
+      12.263186000 seconds user
+       0.003999000 seconds sys
+
+
