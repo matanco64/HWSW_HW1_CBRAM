@@ -1,0 +1,26 @@
+
+ Performance counter stats for '/home/matan-cohen/projects/HWSW_HW1_CBRAM/build/cbram_stage2 400 -n' (3 runs):
+
+    25,108,763,331      cpu_atom/cycles/                                                        ( +- 12.66% )  (1.30%)
+    38,005,719,358      cpu_core/cycles/                                                        ( +-  0.31% )  (49.31%)
+    61,133,003,933      cpu_atom/instructions/                                                  ( +- 39.95% )  (1.30%)
+   133,612,105,351      cpu_core/instructions/                                                  ( +-  0.14% )  (59.19%)
+       189,112,124      cpu_atom/cache-references/                                              ( +- 51.23% )  (1.30%)
+        33,251,147      cpu_core/cache-references/                                              ( +-  7.18% )  (69.07%)
+        68,281,304      cpu_atom/cache-misses/                                                  ( +- 64.31% )  (1.30%)
+           879,533      cpu_core/cache-misses/                                                  ( +- 10.30% )  (78.96%)
+    24,552,793,436      cpu_atom/L1-dcache-loads/                                               ( +- 43.99% )  (1.30%)
+    55,537,295,367      cpu_core/L1-dcache-loads/                                               ( +-  0.16% )  (78.96%)
+   <not supported>      cpu_atom/L1-dcache-load-misses/                                       
+        72,105,367      cpu_core/L1-dcache-load-misses/                                         ( +-  1.07% )  (78.97%)
+        14,464,226      cpu_atom/LLC-loads/                                                     ( +- 72.62% )  (1.30%)
+           907,775      cpu_core/LLC-loads/                                                     ( +-  4.13% )  (78.99%)
+           132,899      cpu_atom/LLC-load-misses/                                               ( +- 74.98% )  (1.30%)
+            34,674      cpu_core/LLC-load-misses/                                               ( +- 15.86% )  (78.99%)
+    24,552,793,436      cpu_atom/dTLB-loads/                                                    ( +- 43.99% )  (1.30%)
+    55,541,213,802      cpu_core/dTLB-loads/                                                    ( +-  0.09% )  (39.46%)
+         2,193,493      cpu_atom/dTLB-load-misses/                                              ( +- 77.62% )  (1.30%)
+            15,134      cpu_core/dTLB-load-misses/                                              ( +- 22.38% )  (39.44%)
+
+       9.021156659 +- 0.051342226 seconds time elapsed  ( +-  0.57% )
+

@@ -148,36 +148,44 @@ if has_stage 3; then
     done
 fi
 
-# ?? 7. Hotspot confirmation & Flamegraph (stage 0) ???????????????????????????
+# ── 7. Hotspot confirmation & Flamegraph (every built stage) ─────────────────
 echo ""
-echo "=== Hotspot check & Flamegraph (perf record on stage 0) ==="
+echo "=== Hotspot check & Flamegraphs (perf record, per stage) ==="
 
-# 1. Ensure FlameGraph tools are available
+# Ensure FlameGraph tools are available
 FLAMEGRAPH_DIR="${SRCDIR}/FlameGraph"
 if [[ ! -d "${FLAMEGRAPH_DIR}" ]]; then
     echo "Cloning FlameGraph repository..."
     git clone https://github.com/brendangregg/FlameGraph.git "${FLAMEGRAPH_DIR}"
 fi
 
-# 2. Record with call-graphs, targeting only user-space (:u) to avoid kernel permission errors
-# -F 999 samples at 999 Hz.
-# --call-graph dwarf provides accurate stack traces for C/C++ binaries.
-(cd "${BUILD_DIR}" && \
-    perf record -e cpu-clock:u -F 999 --call-graph dwarf \
-    -o "${RESULTS_DIR}/stage0.data" \
-    -- "${BUILD_DIR}/cbram_stage0" "${N}" -v -n)
-
-# 3. Generate the Flamegraph
-echo "Generating Flamegraph..."
-(cd "${RESULTS_DIR}" && \
-    perf script --inline -i stage0.data | \
-    "${FLAMEGRAPH_DIR}/stackcollapse-perf.pl" | \
-    "${FLAMEGRAPH_DIR}/flamegraph.pl" > stage0_flamegraph.svg)
-
-echo "Flamegraph saved to: ${RESULTS_DIR}/stage0_flamegraph.svg"
-
-# Display a quick text summary
-perf report -i "${RESULTS_DIR}/stage0.data" --stdio 2>/dev/null | head -30
+# Record one stage with user-space (:u) call-graphs and emit its flamegraph.
+# -F 999 samples at 999 Hz; --call-graph dwarf gives correct stacks at -O2.
+# -n keeps the profile I/O-free so only the compute hot path shows.
+flamegraph_one() {
+    local stage=$1
+    has_stage "${stage}" || return 0
+    local data="${RESULTS_DIR}/stage${stage}.data"
+    local svg="${RESULTS_DIR}/stage${stage}_flamegraph.svg"
+    echo ""
+    echo "--- Stage ${stage} ---"
+    (cd "${BUILD_DIR}" && \
+        perf record -e cpu-clock:u -F 999 --call-graph dwarf \
+        -o "${data}" \
+        -- "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n)
+    perf script --inline -i "${data}" | \
+        "${FLAMEGRAPH_DIR}/stackcollapse-perf.pl" | \
+        "${FLAMEGRAPH_DIR}/flamegraph.pl" \
+            --title "cbram_stage${stage} (N=${N})" > "${svg}"
+    echo "  Flamegraph: ${svg}"
+    # Quick text hotspot summary (top self-time symbols).
+    perf report -i "${data}" --stdio --no-children 2>/dev/null | \
+        grep -E '^\s+[0-9]+\.[0-9]+%' | head -8
+}
+flamegraph_one 0
+flamegraph_one 1
+flamegraph_one 2
+flamegraph_one 3
 
 # ── 8. Diff summary ───────────────────────────────────────────────────────────
 echo ""

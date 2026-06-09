@@ -431,108 +431,100 @@
 <text id="matched" x="1090.00" y="277" > </text>
 <g id="frames">
 <g >
-<title>pick_candidate (6,006,006 samples, 0.05%)</title><rect x="43.0" y="149" width="0.6" height="15.0" fill="rgb(241,169,40)" rx="2" ry="2" />
-<text  x="46.02" y="159.5" ></text>
+<title>collect_candidates (205,205,205 samples, 3.31%)</title><rect x="10.0" y="149" width="39.1" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
+<text  x="13.00" y="159.5" >col..</text>
 </g>
 <g >
-<title>void std::swap&lt;Cell, std::allocator&lt;Cell&gt; &gt; (2,002,002 samples, 0.02%)</title><rect x="1189.8" y="133" width="0.2" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
-<text  x="1192.81" y="143.5" ></text>
-</g>
-<g >
-<title>std::_Vector_base&lt;Cell, std::allocator&lt;Cell&gt; &gt;::_Vector_impl_data::_M_copy_data (2,002,002 samples, 0.02%)</title><rect x="1189.8" y="85" width="0.2" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
-<text  x="1192.81" y="95.5" ></text>
-</g>
-<g >
-<title>rand_below (2,002,002 samples, 0.02%)</title><rect x="43.4" y="133" width="0.2" height="15.0" fill="rgb(211,28,6)" rx="2" ry="2" />
-<text  x="46.40" y="143.5" ></text>
-</g>
-<g >
-<title>__gnu_cxx::__normal_iterator&lt;Cell*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt; std::copy&lt;__gnu_cxx::__normal_iterator&lt;Cell const*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt;, __gnu_cxx::__normal_iterator&lt;Cell*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt; &gt; (2,875,875,873 samples, 23.10%)</title><rect x="335.4" y="101" width="272.6" height="15.0" fill="rgb(242,171,41)" rx="2" ry="2" />
-<text  x="338.39" y="111.5" >__gnu_cxx::__normal_iterator&lt;Cell*, ..</text>
-</g>
-<g >
-<title>_start (12,447,447,435 samples, 100.00%)</title><rect x="10.0" y="213" width="1180.0" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
-<text  x="13.00" y="223.5" >_start</text>
-</g>
-<g >
-<title>__memmove_avx_unaligned_erms (2,875,875,873 samples, 23.10%)</title><rect x="335.4" y="37" width="272.6" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
-<text  x="338.39" y="47.5" >__memmove_avx_unaligned_erms</text>
-</g>
-<g >
-<title>std::_Vector_base&lt;Cell, std::allocator&lt;Cell&gt; &gt;::_Vector_impl_data::_M_swap_data (2,002,002 samples, 0.02%)</title><rect x="1189.8" y="101" width="0.2" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
-<text  x="1192.81" y="111.5" ></text>
-</g>
-<g >
-<title>apply_boundary (3,076,076,073 samples, 24.71%)</title><rect x="43.8" y="133" width="291.6" height="15.0" fill="rgb(239,159,38)" rx="2" ry="2" />
-<text  x="46.78" y="143.5" >apply_boundary</text>
-</g>
-<g >
-<title>std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt;::operator= (2,875,875,873 samples, 23.10%)</title><rect x="335.4" y="117" width="272.6" height="15.0" fill="rgb(236,142,34)" rx="2" ry="2" />
-<text  x="338.39" y="127.5" >std::vector&lt;Cell, std::allocator&lt;Cel..</text>
-</g>
-<g >
-<title>apply_edges (69,069,069 samples, 0.55%)</title><rect x="43.8" y="117" width="6.5" height="15.0" fill="rgb(237,150,36)" rx="2" ry="2" />
-<text  x="46.78" y="127.5" ></text>
-</g>
-<g >
-<title>pin_cluster (3,007,007,004 samples, 24.16%)</title><rect x="50.3" y="117" width="285.1" height="15.0" fill="rgb(213,38,9)" rx="2" ry="2" />
-<text  x="53.33" y="127.5" >pin_cluster</text>
-</g>
-<g >
-<title>Cell* std::__copy_move_a2&lt;false, Cell const*, Cell const*, Cell*&gt; (2,875,875,873 samples, 23.10%)</title><rect x="335.4" y="53" width="272.6" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
-<text  x="338.39" y="63.5" >Cell* std::__copy_move_a2&lt;false, Cel..</text>
-</g>
-<g >
-<title>cbram_stage0 (12,447,447,435 samples, 100.00%)</title><rect x="10.0" y="229" width="1180.0" height="15.0" fill="rgb(213,38,9)" rx="2" ry="2" />
-<text  x="13.00" y="239.5" >cbram_stage0</text>
-</g>
-<g >
-<title>jacobi_sweep (6,137,137,131 samples, 49.30%)</title><rect x="608.0" y="133" width="581.8" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
-<text  x="611.02" y="143.5" >jacobi_sweep</text>
-</g>
-<g >
-<title>std::vector&lt;int, std::allocator&lt;int&gt; &gt;::push_back (3,003,003 samples, 0.02%)</title><rect x="42.7" y="133" width="0.3" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
-<text  x="45.74" y="143.5" ></text>
-</g>
-<g >
-<title>copy_grid (2,875,875,873 samples, 23.10%)</title><rect x="335.4" y="133" width="272.6" height="15.0" fill="rgb(212,32,7)" rx="2" ry="2" />
-<text  x="338.39" y="143.5" >copy_grid</text>
-</g>
-<g >
-<title>all (12,447,447,435 samples, 100%)</title><rect x="10.0" y="245" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
-<text  x="13.00" y="255.5" ></text>
-</g>
-<g >
-<title>std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt;::swap (2,002,002 samples, 0.02%)</title><rect x="1189.8" y="117" width="0.2" height="15.0" fill="rgb(227,102,24)" rx="2" ry="2" />
+<title>std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt;::swap (1,001,001 samples, 0.02%)</title><rect x="1189.8" y="117" width="0.2" height="15.0" fill="rgb(227,102,24)" rx="2" ry="2" />
 <text  x="1192.81" y="127.5" ></text>
 </g>
 <g >
-<title>main (12,447,447,435 samples, 100.00%)</title><rect x="10.0" y="165" width="1180.0" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
-<text  x="13.00" y="175.5" >main</text>
+<title>all (6,196,196,190 samples, 100%)</title><rect x="10.0" y="245" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="13.00" y="255.5" ></text>
 </g>
 <g >
-<title>collect_candidates (347,347,347 samples, 2.79%)</title><rect x="10.1" y="149" width="32.9" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
-<text  x="13.09" y="159.5" >co..</text>
+<title>jacobi_sweep (3,256,256,253 samples, 52.55%)</title><rect x="569.7" y="133" width="620.1" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="572.69" y="143.5" >jacobi_sweep</text>
 </g>
 <g >
-<title>__libc_start_call_main (12,447,447,435 samples, 100.00%)</title><rect x="10.0" y="181" width="1180.0" height="15.0" fill="rgb(210,26,6)" rx="2" ry="2" />
+<title>Cell* std::__copy_move_a2&lt;false, Cell const*, Cell const*, Cell*&gt; (1,195,195,194 samples, 19.29%)</title><rect x="342.1" y="53" width="227.6" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="345.08" y="63.5" >Cell* std::__copy_move_a2&lt;fals..</text>
+</g>
+<g >
+<title>cbram_stage0 (6,196,196,190 samples, 100.00%)</title><rect x="10.0" y="229" width="1180.0" height="15.0" fill="rgb(213,38,9)" rx="2" ry="2" />
+<text  x="13.00" y="239.5" >cbram_stage0</text>
+</g>
+<g >
+<title>__gnu_cxx::__normal_iterator&lt;Cell*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt; std::copy&lt;__gnu_cxx::__normal_iterator&lt;Cell const*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt;, __gnu_cxx::__normal_iterator&lt;Cell*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt; &gt; (1,195,195,194 samples, 19.29%)</title><rect x="342.1" y="101" width="227.6" height="15.0" fill="rgb(242,171,41)" rx="2" ry="2" />
+<text  x="345.08" y="111.5" >__gnu_cxx::__normal_iterator&lt;C..</text>
+</g>
+<g >
+<title>std::_Vector_base&lt;Cell, std::allocator&lt;Cell&gt; &gt;::_Vector_impl_data::_M_copy_data (1,001,001 samples, 0.02%)</title><rect x="1189.8" y="85" width="0.2" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="1192.81" y="95.5" ></text>
+</g>
+<g >
+<title>__libc_start_call_main (6,196,196,190 samples, 100.00%)</title><rect x="10.0" y="181" width="1180.0" height="15.0" fill="rgb(210,26,6)" rx="2" ry="2" />
 <text  x="13.00" y="191.5" >__libc_start_call_main</text>
 </g>
 <g >
-<title>__gnu_cxx::__normal_iterator&lt;Cell*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt; std::__copy_move_a&lt;false, __gnu_cxx::__normal_iterator&lt;Cell const*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt;, __gnu_cxx::__normal_iterator&lt;Cell*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt; &gt; (2,875,875,873 samples, 23.10%)</title><rect x="335.4" y="85" width="272.6" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
-<text  x="338.39" y="95.5" >__gnu_cxx::__normal_iterator&lt;Cell*, ..</text>
+<title>std::vector&lt;int, std::allocator&lt;int&gt; &gt;::push_back (2,002,002 samples, 0.03%)</title><rect x="48.7" y="133" width="0.4" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="51.70" y="143.5" ></text>
 </g>
 <g >
-<title>Cell* std::__copy_move_a1&lt;false, Cell const*, Cell*&gt; (2,875,875,873 samples, 23.10%)</title><rect x="335.4" y="69" width="272.6" height="15.0" fill="rgb(253,222,53)" rx="2" ry="2" />
-<text  x="338.39" y="79.5" >Cell* std::__copy_move_a1&lt;false, Cel..</text>
+<title>solve_potential (5,990,990,985 samples, 96.69%)</title><rect x="49.1" y="149" width="1140.9" height="15.0" fill="rgb(222,81,19)" rx="2" ry="2" />
+<text  x="52.08" y="159.5" >solve_potential</text>
 </g>
 <g >
-<title>solve_potential (12,092,092,080 samples, 97.15%)</title><rect x="43.7" y="149" width="1146.3" height="15.0" fill="rgb(222,81,19)" rx="2" ry="2" />
-<text  x="46.69" y="159.5" >solve_potential</text>
+<title>__memmove_avx_unaligned_erms (1,195,195,194 samples, 19.29%)</title><rect x="342.1" y="37" width="227.6" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
+<text  x="345.08" y="47.5" >__memmove_avx_unaligned_erms</text>
 </g>
 <g >
-<title>__libc_start_main_impl (12,447,447,435 samples, 100.00%)</title><rect x="10.0" y="197" width="1180.0" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<title>copy_grid (1,195,195,194 samples, 19.29%)</title><rect x="342.1" y="133" width="227.6" height="15.0" fill="rgb(212,32,7)" rx="2" ry="2" />
+<text  x="345.08" y="143.5" >copy_grid</text>
+</g>
+<g >
+<title>__libc_start_main_impl (6,196,196,190 samples, 100.00%)</title><rect x="10.0" y="197" width="1180.0" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
 <text  x="13.00" y="207.5" >__libc_start_main_impl</text>
+</g>
+<g >
+<title>pin_cluster (1,506,506,505 samples, 24.31%)</title><rect x="55.2" y="117" width="286.9" height="15.0" fill="rgb(213,38,9)" rx="2" ry="2" />
+<text  x="58.18" y="127.5" >pin_cluster</text>
+</g>
+<g >
+<title>Cell* std::__copy_move_a1&lt;false, Cell const*, Cell*&gt; (1,195,195,194 samples, 19.29%)</title><rect x="342.1" y="69" width="227.6" height="15.0" fill="rgb(253,222,53)" rx="2" ry="2" />
+<text  x="345.08" y="79.5" >Cell* std::__copy_move_a1&lt;fals..</text>
+</g>
+<g >
+<title>void std::swap&lt;Cell, std::allocator&lt;Cell&gt; &gt; (1,001,001 samples, 0.02%)</title><rect x="1189.8" y="133" width="0.2" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="1192.81" y="143.5" ></text>
+</g>
+<g >
+<title>__gnu_cxx::__normal_iterator&lt;Cell*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt; std::__copy_move_a&lt;false, __gnu_cxx::__normal_iterator&lt;Cell const*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt;, __gnu_cxx::__normal_iterator&lt;Cell*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt; &gt; (1,195,195,194 samples, 19.29%)</title><rect x="342.1" y="85" width="227.6" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="345.08" y="95.5" >__gnu_cxx::__normal_iterator&lt;C..</text>
+</g>
+<g >
+<title>std::_Vector_base&lt;Cell, std::allocator&lt;Cell&gt; &gt;::_Vector_impl_data::_M_swap_data (1,001,001 samples, 0.02%)</title><rect x="1189.8" y="101" width="0.2" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="1192.81" y="111.5" ></text>
+</g>
+<g >
+<title>_start (6,196,196,190 samples, 100.00%)</title><rect x="10.0" y="213" width="1180.0" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="13.00" y="223.5" >_start</text>
+</g>
+<g >
+<title>std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt;::operator= (1,195,195,194 samples, 19.29%)</title><rect x="342.1" y="117" width="227.6" height="15.0" fill="rgb(236,142,34)" rx="2" ry="2" />
+<text  x="345.08" y="127.5" >std::vector&lt;Cell, std::allocat..</text>
+</g>
+<g >
+<title>apply_edges (32,032,032 samples, 0.52%)</title><rect x="49.1" y="117" width="6.1" height="15.0" fill="rgb(237,150,36)" rx="2" ry="2" />
+<text  x="52.08" y="127.5" ></text>
+</g>
+<g >
+<title>main (6,196,196,190 samples, 100.00%)</title><rect x="10.0" y="165" width="1180.0" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
+<text  x="13.00" y="175.5" >main</text>
+</g>
+<g >
+<title>apply_boundary (1,538,538,537 samples, 24.83%)</title><rect x="49.1" y="133" width="293.0" height="15.0" fill="rgb(239,159,38)" rx="2" ry="2" />
+<text  x="52.08" y="143.5" >apply_boundary</text>
 </g>
 </g>
 </svg>
