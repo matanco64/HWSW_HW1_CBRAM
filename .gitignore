@@ -73,4 +73,4 @@ cbram_stage0
 cbram_stage1
 cbram_stage2
 cbram_stage3
-
+results/*.data*
