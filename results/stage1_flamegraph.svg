@@ -1,6 +1,6 @@
 <?xml version="1.0" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg version="1.1" width="1200" height="310" onload="init(evt)" viewBox="0 0 1200 310" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<svg version="1.1" width="1200" height="198" onload="init(evt)" viewBox="0 0 1200 198" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 <!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
 <!-- NOTES:  -->
 <defs>
@@ -422,97 +422,57 @@
 	}
 ]]>
 </script>
-<rect x="0.0" y="0" width="1200.0" height="310.0" fill="url(#background)"  />
-<text id="title" x="600.00" y="24" >cbram_stage0 (N=500)</text>
-<text id="details" x="10.00" y="293" > </text>
+<rect x="0.0" y="0" width="1200.0" height="198.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >cbram_stage1 (N=500)</text>
+<text id="details" x="10.00" y="181" > </text>
 <text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
 <text id="search" x="1090.00" y="24" >Search</text>
 <text id="ignorecase" x="1174.00" y="24" >ic</text>
-<text id="matched" x="1090.00" y="293" > </text>
+<text id="matched" x="1090.00" y="181" > </text>
 <g id="frames">
 <g >
-<title>std::__copy_move_a2&lt;false, Cell const*, Cell*&gt; (6,340,340,334 samples, 18.98%)</title><rect x="378.7" y="69" width="224.0" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
-<text  x="381.71" y="79.5" >std::__copy_move_a2&lt;false, Ce..</text>
+<title>[libc.so.6] (26,578,578,552 samples, 100.00%)</title><rect x="10.0" y="85" width="1180.0" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="13.04" y="95.5" >[libc.so.6]</text>
 </g>
 <g >
-<title>std::__copy_move_a&lt;false, __gnu_cxx::__normal_iterator&lt;Cell const*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt;, __gnu_cxx::__normal_iterator&lt;Cell*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt; &gt; (6,340,340,334 samples, 18.98%)</title><rect x="378.7" y="101" width="224.0" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
-<text  x="381.71" y="111.5" >std::__copy_move_a&lt;false, __g..</text>
+<title>all (26,579,579,553 samples, 100%)</title><rect x="10.0" y="149" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="13.00" y="159.5" ></text>
 </g>
 <g >
-<title>apply_boundary (9,486,486,477 samples, 28.40%)</title><rect x="43.5" y="149" width="335.1" height="15.0" fill="rgb(239,159,38)" rx="2" ry="2" />
-<text  x="46.46" y="159.5" >apply_boundary</text>
+<title>main (25,243,243,218 samples, 94.97%)</title><rect x="69.3" y="37" width="1120.7" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
+<text  x="72.28" y="47.5" >main</text>
 </g>
 <g >
-<title>std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt;::operator= (6,343,343,337 samples, 18.99%)</title><rect x="378.6" y="133" width="224.2" height="15.0" fill="rgb(236,142,34)" rx="2" ry="2" />
-<text  x="381.64" y="143.5" >std::vector&lt;Cell, std::alloca..</text>
+<title>_start (26,578,578,552 samples, 100.00%)</title><rect x="10.0" y="117" width="1180.0" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="13.04" y="127.5" >_start</text>
 </g>
 <g >
-<title>main (33,396,396,363 samples, 100.00%)</title><rect x="10.0" y="181" width="1180.0" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
-<text  x="13.04" y="191.5" >main</text>
+<title>std::vector&lt;int, std::allocator&lt;int&gt; &gt;::push_back (12,012,012 samples, 0.05%)</title><rect x="10.0" y="37" width="0.6" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="13.04" y="47.5" ></text>
 </g>
 <g >
-<title>std::__copy_move_a1&lt;false, Cell const*, Cell*&gt; (6,340,340,334 samples, 18.98%)</title><rect x="378.7" y="85" width="224.0" height="15.0" fill="rgb(211,32,7)" rx="2" ry="2" />
-<text  x="381.71" y="95.5" >std::__copy_move_a1&lt;false, Ce..</text>
+<title>main (26,578,578,552 samples, 100.00%)</title><rect x="10.0" y="69" width="1180.0" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
+<text  x="13.04" y="79.5" >main</text>
 </g>
 <g >
-<title>[libc.so.6] (6,340,340,334 samples, 18.98%)</title><rect x="378.7" y="37" width="224.0" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
-<text  x="381.71" y="47.5" >[libc.so.6]</text>
+<title>collect_candidates (12,012,012 samples, 0.05%)</title><rect x="10.0" y="53" width="0.6" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
+<text  x="13.04" y="63.5" ></text>
 </g>
 <g >
-<title>std::vector&lt;int, std::allocator&lt;int&gt; &gt;::push_back (8,008,008 samples, 0.02%)</title><rect x="10.0" y="149" width="0.3" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
-<text  x="13.04" y="159.5" ></text>
+<title>__libc_start_main (26,578,578,552 samples, 100.00%)</title><rect x="10.0" y="101" width="1180.0" height="15.0" fill="rgb(236,142,34)" rx="2" ry="2" />
+<text  x="13.04" y="111.5" >__libc_start_main</text>
 </g>
 <g >
-<title>_start (33,396,396,363 samples, 100.00%)</title><rect x="10.0" y="229" width="1180.0" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
-<text  x="13.04" y="239.5" >_start</text>
+<title>cbram_stage1 (26,579,579,553 samples, 100.00%)</title><rect x="10.0" y="133" width="1180.0" height="15.0" fill="rgb(206,8,2)" rx="2" ry="2" />
+<text  x="13.00" y="143.5" >cbram_stage1</text>
 </g>
 <g >
-<title>main (936,936,936 samples, 2.81%)</title><rect x="10.3" y="165" width="33.1" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
-<text  x="13.32" y="175.5" >main</text>
+<title>main (1,320,320,319 samples, 4.97%)</title><rect x="10.6" y="53" width="58.6" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
+<text  x="13.58" y="63.5" >main</text>
 </g>
 <g >
-<title>__libc_start_main (33,396,396,363 samples, 100.00%)</title><rect x="10.0" y="213" width="1180.0" height="15.0" fill="rgb(236,142,34)" rx="2" ry="2" />
-<text  x="13.04" y="223.5" >__libc_start_main</text>
-</g>
-<g >
-<title>std::__copy_move&lt;false, true, std::random_access_iterator_tag&gt;::__copy_m&lt;Cell&gt; (6,340,340,334 samples, 18.98%)</title><rect x="378.7" y="53" width="224.0" height="15.0" fill="rgb(219,65,15)" rx="2" ry="2" />
-<text  x="381.71" y="63.5" >std::__copy_move&lt;false, true,..</text>
-</g>
-<g >
-<title>all (33,397,397,364 samples, 100%)</title><rect x="10.0" y="261" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
-<text  x="13.00" y="271.5" ></text>
-</g>
-<g >
-<title>solve_potential (32,448,448,416 samples, 97.16%)</title><rect x="43.5" y="165" width="1146.4" height="15.0" fill="rgb(222,81,19)" rx="2" ry="2" />
-<text  x="46.46" y="175.5" >solve_potential</text>
-</g>
-<g >
-<title>main (16,618,618,602 samples, 49.76%)</title><rect x="602.8" y="149" width="587.1" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
-<text  x="605.76" y="159.5" >main</text>
-</g>
-<g >
-<title>main (9,486,486,477 samples, 28.40%)</title><rect x="43.5" y="133" width="335.1" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
-<text  x="46.46" y="143.5" >main</text>
-</g>
-<g >
-<title>collect_candidates (8,008,008 samples, 0.02%)</title><rect x="10.0" y="165" width="0.3" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
-<text  x="13.04" y="175.5" ></text>
-</g>
-<g >
-<title>cbram_stage0 (33,397,397,364 samples, 100.00%)</title><rect x="10.0" y="245" width="1180.0" height="15.0" fill="rgb(213,38,9)" rx="2" ry="2" />
-<text  x="13.00" y="255.5" >cbram_stage0</text>
-</g>
-<g >
-<title>copy_grid (6,343,343,337 samples, 18.99%)</title><rect x="378.6" y="149" width="224.2" height="15.0" fill="rgb(212,32,7)" rx="2" ry="2" />
-<text  x="381.64" y="159.5" >copy_grid</text>
-</g>
-<g >
-<title>std::copy&lt;__gnu_cxx::__normal_iterator&lt;Cell const*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt;, __gnu_cxx::__normal_iterator&lt;Cell*, std::vector&lt;Cell, std::allocator&lt;Cell&gt; &gt; &gt; &gt; (6,340,340,334 samples, 18.98%)</title><rect x="378.7" y="117" width="224.0" height="15.0" fill="rgb(253,222,53)" rx="2" ry="2" />
-<text  x="381.71" y="127.5" >std::copy&lt;__gnu_cxx::__normal..</text>
-</g>
-<g >
-<title>[libc.so.6] (33,396,396,363 samples, 100.00%)</title><rect x="10.0" y="197" width="1180.0" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
-<text  x="13.04" y="207.5" >[libc.so.6]</text>
+<title>solve_potential (25,243,243,218 samples, 94.97%)</title><rect x="69.3" y="53" width="1120.7" height="15.0" fill="rgb(222,81,19)" rx="2" ry="2" />
+<text  x="72.28" y="63.5" >solve_potential</text>
 </g>
 </g>
 </svg>

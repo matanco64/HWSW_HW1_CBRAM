@@ -1,26 +1,16 @@
 
- Performance counter stats for '/home/matan-cohen/projects/HWSW_HW1_CBRAM/build/cbram_stage0 400 -n' (3 runs):
+ Performance counter stats for '/root/HWSW_HW1_CBRAM/build/cbram_stage0 500 -n' (3 runs):
 
-    15,679,229,723      cpu_atom/cycles/                                                        ( +-  6.91% )  (1.24%)
-    26,230,692,939      cpu_core/cycles/                                                        ( +-  1.22% )  (49.37%)
-    35,339,112,016      cpu_atom/instructions/                                                  ( +- 13.23% )  (1.24%)
-    96,288,153,150      cpu_core/instructions/                                                  ( +-  0.20% )  (59.27%)
-     1,340,493,198      cpu_atom/cache-references/                                              ( +-  8.37% )  (1.24%)
-     1,919,079,717      cpu_core/cache-references/                                              ( +-  0.70% )  (69.15%)
-       262,216,692      cpu_atom/cache-misses/                                                  ( +- 56.78% )  (1.24%)
-           576,923      cpu_core/cache-misses/                                                  ( +-  9.03% )  (79.03%)
-    11,863,619,747      cpu_atom/L1-dcache-loads/                                               ( +- 13.03% )  (1.24%)
-    29,499,471,295      cpu_core/L1-dcache-loads/                                               ( +-  0.16% )  (79.03%)
-   <not supported>      cpu_atom/L1-dcache-load-misses/                                       
-     1,167,407,029      cpu_core/L1-dcache-load-misses/                                         ( +-  0.36% )  (79.03%)
-        36,538,190      cpu_atom/LLC-loads/                                                     ( +- 16.04% )  (1.24%)
-        80,302,191      cpu_core/LLC-loads/                                                     ( +-  3.57% )  (79.03%)
-           277,757      cpu_atom/LLC-load-misses/                                               ( +- 52.71% )  (1.24%)
-            47,857      cpu_core/LLC-load-misses/                                               ( +- 14.94% )  (79.02%)
-    11,863,619,747      cpu_atom/dTLB-loads/                                                    ( +- 13.03% )  (1.24%)
-    29,492,998,327      cpu_core/dTLB-loads/                                                    ( +-  0.17% )  (39.47%)
-           265,476      cpu_atom/dTLB-load-misses/                                              ( +- 16.57% )  (1.24%)
-            15,343      cpu_core/dTLB-load-misses/                                              ( +- 18.19% )  (39.48%)
+       77490476898      cycles                                                        ( +-  0.36% )  (62.49%)
+      169991551617      instructions              #    2.18  insn per cycle           ( +-  0.02% )  (74.99%)
+         382888261      cache-references                                              ( +-  0.10% )  (74.99%)
+             51229      cache-misses              #    0.013 % of all cache refs      ( +- 17.94% )  (74.99%)
+       26617161314      L1-dcache-loads                                               ( +-  0.05% )  (74.99%)
+        4188213301      L1-dcache-load-misses     #   15.74% of all L1-dcache accesses  ( +-  0.04% )  (74.99%)
+   <not supported>      LLC-loads                                                   
+   <not supported>      LLC-load-misses                                             
+       37620230889      dTLB-loads                                                    ( +-  0.03% )  (50.02%)
+           2713637      dTLB-load-misses          #    0.01% of all dTLB cache accesses  ( +-  3.64% )  (50.02%)
 
-       6.116577124 +- 0.074294443 seconds time elapsed  ( +-  1.21% )
+            33.939 +- 0.319 seconds time elapsed  ( +-  0.94% )
 
