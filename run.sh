@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # run.sh — build, verify correctness, and profile all CBRAM stages.
-# Usage: ./run.sh [N] [--no-build|-B] [--no-run|-R] [--topdown]
-#                     [--perf-runs N] [--stages 0,1,2,3]
-#   N  grid size (default 1024; tune so stage 0 takes 10-30 s)
+# Usage: ./run.sh [N] [STEPS] [--no-build|-B] [--no-run|-R] [--topdown]
+#                  [--perf-runs N] [--stages 0,1,2,3] [--steps K]
+#   N      grid size (default 6144 — working set ≈ 300 MB, far past the 24 MB
+#          L3, so the memory hierarchy is genuinely exercised)
+#   STEPS  cap on growth steps (default 80; 0 = run until bridged).
+#          A full bridge at large N takes thousands of steps; a fixed cap
+#          keeps every run at an identical, affordable amount of work.
 
 set -euo pipefail
 
@@ -10,13 +14,15 @@ SRCDIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${BUILD_DIR:-${SRCDIR}/build}"
 RESULTS_DIR="${SRCDIR}/results"
 
-N=1024
+N=6144
+STEPS=80
 NO_BUILD=0
 NO_RUN=0
 TOPDOWN=0
 PERF_RUNS=3
 STAGES="0 1 2 3"
 
+NPOS=0   # bare numbers: first is N, second is STEPS
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --no-build|-B)  NO_BUILD=1 ;;
@@ -24,7 +30,9 @@ while [[ $# -gt 0 ]]; do
         --topdown)      TOPDOWN=1 ;;
         --perf-runs)    PERF_RUNS="$2"; shift ;;
         --stages)       STAGES="${2//,/ }"; shift ;;
-        [0-9]*)         N="$1" ;;
+        --steps)        STEPS="$2"; shift ;;
+        [0-9]*)         if [[ $NPOS -eq 0 ]]; then N="$1"; else STEPS="$1"; fi
+                        NPOS=$((NPOS + 1)) ;;
         *)              echo "Unknown flag: $1" >&2; exit 1 ;;
     esac
     shift
@@ -56,11 +64,12 @@ run_stage() {
         echo "  Skipping stage ${stage} (not built yet)"
         return
     fi
-    echo "=== Running stage ${stage} (${label}, N=${N}) ==="
+    echo "=== Running stage ${stage} (${label}, N=${N}, steps=${STEPS}) ==="
     mkdir -p "${BUILD_DIR}/frames_stage${stage}"
-    # Run from BUILD_DIR so output files land there
+    # Run from BUILD_DIR so output files land there. Frame dumps are opt-in
+    # (-f) and deliberately NOT enabled here; `time` logs wall/user per run.
     (cd "${BUILD_DIR}" && \
-        env ${extra_env} "${BUILD_DIR}/cbram_stage${stage}" "${N}")
+        time env ${extra_env} "${BUILD_DIR}/cbram_stage${stage}" "${N}" -s "${STEPS}")
     cp "${BUILD_DIR}/V_final_stage${stage}.bin" \
        "${RESULTS_DIR}/V_final_stage${stage}.bin"
     echo ""
@@ -109,7 +118,7 @@ for stage in ${STAGES}; do
     (cd "${BUILD_DIR}" && \
         perf stat -r "${PERF_RUNS}" \
         -e "${PERF_EVENTS}" \
-        "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n \
+        "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n -s "${STEPS}" \
         2> "${RESULTS_DIR}/stage${stage}.perf")
     cat "${RESULTS_DIR}/stage${stage}.perf"
 done
@@ -121,7 +130,7 @@ if has_stage 3 && [[ " ${STAGES} " == *" 3 "* ]]; then
         OMP_PROC_BIND=close OMP_PLACES=cores \
         perf stat -r "${PERF_RUNS}" \
         -e "${PERF_EVENTS}" \
-        "${BUILD_DIR}/cbram_stage3" "${N}" -n \
+        "${BUILD_DIR}/cbram_stage3" "${N}" -n -s "${STEPS}" \
         2> "${RESULTS_DIR}/stage3.perf")
     cat "${RESULTS_DIR}/stage3.perf"
 fi
@@ -137,10 +146,10 @@ topdown_one() {
     echo ""
     echo "--- Stage ${stage} ---"
     if (cd "${BUILD_DIR}" && perf stat --topdown --td-level 2 \
-            -- "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n >/dev/null) 2> "${out}"; then
+            -- "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n -s "${STEPS}" >/dev/null) 2> "${out}"; then
         :
     elif (cd "${BUILD_DIR}" && perf stat --topdown \
-            -- "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n >/dev/null) 2> "${out}"; then
+            -- "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n -s "${STEPS}" >/dev/null) 2> "${out}"; then
         :
     else
         echo "  (topdown not supported by this perf/CPU — skipping)" | tee "${out}"
@@ -170,7 +179,7 @@ if has_stage 3 && [[ " ${STAGES} " == *" 3 "* ]]; then
         (cd "${BUILD_DIR}" && \
             OMP_NUM_THREADS=${T} OMP_PROC_BIND=close OMP_PLACES=cores \
             perf stat -r "${PERF_RUNS}" -e cycles,instructions,LLC-load-misses \
-            "${BUILD_DIR}/cbram_stage3" "${N}" -n \
+            "${BUILD_DIR}/cbram_stage3" "${N}" -n -s "${STEPS}" \
             2> "${RESULTS_DIR}/stage3_t${T}.perf")
         grep "seconds time elapsed" "${RESULTS_DIR}/stage3_t${T}.perf" | head -1
     done
@@ -200,7 +209,7 @@ flamegraph_one() {
     (cd "${BUILD_DIR}" && \
         perf record -e cpu-clock:u -F 999 --call-graph dwarf \
         -o "${data}" \
-        -- "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n)
+        -- "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n -s "${STEPS}")
     perf script --inline -i "${data}" | \
         "${FLAMEGRAPH_DIR}/stackcollapse-perf.pl" | \
         "${FLAMEGRAPH_DIR}/flamegraph.pl" \

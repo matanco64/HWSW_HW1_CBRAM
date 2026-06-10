@@ -148,11 +148,16 @@ static void write_frame(int step, int N,
 int main(int argc, char* argv[]) {
     int N = DEFAULT_N;
     bool verbose = false;
-    bool dump_frames = true;   // -n disables per-frame dumps (compute-only profiling)
+    bool dump_frames = false;   // opt-in: -f enables per-frame dumps (for the video)
+    int max_steps = 0;          // -s K caps growth steps; 0 = run until bridged.
+                                // Lets large-N profiling runs do a fixed, identical
+                                // amount of work per stage instead of a full bridge.
     for (int i = 1; i < argc; ++i) {
         if (argv[i][0] == '-') {
             if (argv[i][1] == 'v') verbose = true;
-            else if (argv[i][1] == 'n') dump_frames = false;
+            else if (argv[i][1] == 'f') dump_frames = true;
+            else if (argv[i][1] == 'n') dump_frames = false;   // legacy no-op (off is the default)
+            else if (argv[i][1] == 's' && i + 1 < argc) max_steps = atoi(argv[++i]);
         }
         else N = atoi(argv[i]);
     }
@@ -176,7 +181,8 @@ int main(int argc, char* argv[]) {
 
     bool bridged = false;
     int  step    = 0;
-    for (step = 0; step < (int)nn; ++step) {
+    int  limit   = (max_steps > 0 && max_steps < (int)nn) ? max_steps : (int)nn;
+    for (step = 0; step < limit; ++step) {
         solve_potential(V, V_next, metal, N);      // phase 1: Jacobi (hot loop)
 
         collect_candidates(metal, N, cand);        // phase 2: O(N²) frontier scan

@@ -12,11 +12,14 @@
 //   OVERLAPPED TILING: the 30 sweeps are processed in chunks of
 //   T_BLOCK. For each chunk, the grid is cut into TILE×TILE tiles;
 //   each tile is loaded together with a T-cell halo into a small
-//   scratch pair that fits in L1, marched forward T sweeps (the
-//   valid region shrinks one cell per side each sweep), then the
-//   owned interior is written back. A tile's whole T-step history
-//   stays hot in L1 — the big array is read from L2/DRAM ~30/T_BLOCK
-//   times instead of 30, at the cost of recomputing the halos.
+//   scratch pair that fits the P-core's private L2, marched forward
+//   T sweeps (the valid region shrinks one cell per side each sweep),
+//   then the owned interior is written back. A tile's whole T-step
+//   history stays hot in L2 — the big arrays are streamed from
+//   L3/DRAM ~30/T_BLOCK times instead of 30, at the cost of
+//   recomputing the halos. This only pays off once the working set
+//   (2 * N² * 4 B) exceeds the 24 MB L3, i.e. N ≳ 1800; below that
+//   stage 1 never touches DRAM and the halo work is pure overhead.
 //
 //   Tiles are independent (all read the chunk-start state, write
 //   disjoint outputs), which also makes stage 3 (OpenMP) trivial.
@@ -38,10 +41,13 @@
 #include <sys/stat.h>
 #include <vector>
 
-// Blocking parameters. (TILE + 2*T_BLOCK)^2 int32 * 2 buffers should fit L1:
-// (64+8)^2 * 4 * 2 ≈ 41 KB. Both are tunable knobs for the report's sweep.
-static const int TILE    = 64;
-static const int T_BLOCK = 4;
+// Blocking parameters. (TILE + 2*T_BLOCK)^2 int32 * 2 buffers should fit the
+// P-core's 2 MB private L2: (256+20)^2 * 4 * 2 ≈ 0.6 MB. Blocking for L1 (the
+// first attempt: TILE=64, T_BLOCK=4) loses badly — the tiny tiles make the
+// halo + copy-in/out overhead ~2x the useful stencil work, and the data was
+// already L2-resident anyway. Both are tunable knobs for the report's sweep.
+static const int TILE    = 256;
+static const int T_BLOCK = 10;
 
 // Fixed conditions on the grid edges: Dirichlet anode/cathode rows, Neumann
 // (insulating) side walls. O(N). Used to refresh a chunk's edges between blocks.
@@ -69,23 +75,36 @@ static __int128 rand_below(Rng& rng, __int128 n) {
 static void advance_tile(const std::vector<int32_t>& src, std::vector<int32_t>& dst,
                          const std::vector<uint8_t>& metal, int N, int T,
                          int ro0, int ro1, int co0, int co1) {
-    static std::vector<int32_t> a, b;   // L1 scratch, reused across tiles/calls
+    static std::vector<int32_t> a, b;   // L2-resident scratch, reused across tiles/calls
+    static std::vector<uint8_t> m;      // tile-local metal copy (fixed for all T sweeps)
 
     const int R0 = std::max(0, ro0 - T), R1 = std::min(N, ro1 + T);
     const int C0 = std::max(0, co0 - T), C1 = std::min(N, co1 + T);
     const int LH = R1 - R0, LW = C1 - C0;
     a.resize((size_t)LH * LW);
     b.resize((size_t)LH * LW);
+    m.resize((size_t)LH * LW);
 
-    // Load the chunk-start state into BOTH scratch buffers, so constant cells
-    // (Dirichlet rows, and any cell never recomputed) are valid in either.
+    // Load the chunk-start state into scratch `a`. Buffer `b` only needs the
+    // Dirichlet anode/cathode rows: every other cell a sub-sweep reads was
+    // rewritten by the previous sub-sweep (the valid region shrinks one cell
+    // per side per sweep, and the Neumann walls are refreshed every sub-sweep),
+    // but rows 0 and N-1 are never recomputed and must be valid in BOTH buffers.
+    // metal[] is fixed for the whole growth step, so one local copy per chunk
+    // replaces T strided reads of the global array (a full-grid DRAM stream
+    // per sub-sweep otherwise — the dominant remaining traffic at large N).
     for (int r = R0; r < R1; ++r)
         for (int c = C0; c < C1; ++c) {
-            int32_t v = src[(size_t)r * N + c];
             size_t li = (size_t)(r - R0) * LW + (c - C0);
-            a[li] = v;
-            b[li] = v;
+            a[li] = src[(size_t)r * N + c];
+            m[li] = metal[(size_t)r * N + c];
         }
+    if (R0 == 0)
+        for (int c = C0; c < C1; ++c)
+            b[c - C0] = src[c];
+    if (R1 == N)
+        for (int c = C0; c < C1; ++c)
+            b[(size_t)(N - 1 - R0) * LW + (c - C0)] = src[(size_t)(N - 1) * N + c];
 
     std::vector<int32_t>* cur = &a;
     std::vector<int32_t>* nxt = &b;
@@ -115,10 +134,12 @@ static void advance_tile(const std::vector<int32_t>& src, std::vector<int32_t>& 
                 nv[row + (N - 1)] = nv[row + (N - 2)];     // right wall = its neighbour
             }
         // Internal Dirichlet: re-pin metal cells to V=0 (overrides the stencil).
+        // Branchless select so the compiler vectorizes it like stage 1's
+        // pin_cluster, instead of a per-cell compare-and-branch.
         for (int r = rr0; r < rr1; ++r) {
             size_t base = (size_t)(r - R0) * LW - C0;
             for (int c = cc0; c < cc1; ++c)
-                if (metal[(size_t)r * N + c]) nv[base + c] = 0;
+                nv[base + c] = m[base + c] ? 0 : nv[base + c];
         }
         std::swap(cur, nxt);
     }
@@ -221,11 +242,16 @@ static void write_frame(int step, int N,
 int main(int argc, char* argv[]) {
     int N = DEFAULT_N;
     bool verbose = false;
-    bool dump_frames = true;   // -n disables per-frame dumps (compute-only profiling)
+    bool dump_frames = false;   // opt-in: -f enables per-frame dumps (for the video)
+    int max_steps = 0;          // -s K caps growth steps; 0 = run until bridged.
+                                // Lets large-N profiling runs do a fixed, identical
+                                // amount of work per stage instead of a full bridge.
     for (int i = 1; i < argc; ++i) {
         if (argv[i][0] == '-') {
             if (argv[i][1] == 'v') verbose = true;
-            else if (argv[i][1] == 'n') dump_frames = false;
+            else if (argv[i][1] == 'f') dump_frames = true;
+            else if (argv[i][1] == 'n') dump_frames = false;   // legacy no-op (off is the default)
+            else if (argv[i][1] == 's' && i + 1 < argc) max_steps = atoi(argv[++i]);
         }
         else N = atoi(argv[i]);
     }
@@ -249,7 +275,8 @@ int main(int argc, char* argv[]) {
 
     bool bridged = false;
     int  step    = 0;
-    for (step = 0; step < (int)nn; ++step) {
+    int  limit   = (max_steps > 0 && max_steps < (int)nn) ? max_steps : (int)nn;
+    for (step = 0; step < limit; ++step) {
         solve_potential(V, V_next, metal, N);      // phase 1: time-blocked Jacobi
 
         collect_candidates(metal, N, cand);
