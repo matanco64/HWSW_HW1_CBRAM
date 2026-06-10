@@ -1,14 +1,34 @@
 #!/usr/bin/env bash
 # run.sh — build, verify correctness, and profile all CBRAM stages.
-# Usage: ./run.sh [N]
+# Usage: ./run.sh [N] [--no-build|-B] [--no-run|-R] [--topdown]
+#                     [--perf-runs N] [--stages 0,1,2,3]
 #   N  grid size (default 1024; tune so stage 0 takes 10-30 s)
 
 set -euo pipefail
 
 SRCDIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${BUILD_DIR:-${SRCDIR}/build}"
-N="${1:-1024}"
 RESULTS_DIR="${SRCDIR}/results"
+
+N=1024
+NO_BUILD=0
+NO_RUN=0
+TOPDOWN=0
+PERF_RUNS=3
+STAGES="0 1 2 3"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --no-build|-B)  NO_BUILD=1 ;;
+        --no-run|-R)    NO_RUN=1 ;;
+        --topdown)      TOPDOWN=1 ;;
+        --perf-runs)    PERF_RUNS="$2"; shift ;;
+        --stages)       STAGES="${2//,/ }"; shift ;;
+        [0-9]*)         N="$1" ;;
+        *)              echo "Unknown flag: $1" >&2; exit 1 ;;
+    esac
+    shift
+done
 
 mkdir -p "${RESULTS_DIR}"
 
@@ -16,9 +36,11 @@ mkdir -p "${RESULTS_DIR}"
 has_stage() { [[ -f "${BUILD_DIR}/cbram_stage${1}" ]]; }
 
 # ── 1. Build ──────────────────────────────────────────────────────────────────
-echo "=== Building all stages ==="
-bash "${SRCDIR}/build.sh"
-echo ""
+if [[ $NO_BUILD -eq 0 ]]; then
+    echo "=== Building all stages ==="
+    bash "${SRCDIR}/build.sh"
+    echo ""
+fi
 
 # ── 2. Log hardware environment ───────────────────────────────────────────────
 echo "=== Hardware environment ==="
@@ -44,10 +66,12 @@ run_stage() {
     echo ""
 }
 
-run_stage 0 "naive AoS"
-run_stage 1 "SoA"
-run_stage 2 "SoA + time skewing"
-run_stage 3 "SoA + skewing + OpenMP" "OMP_PROC_BIND=close OMP_PLACES=cores"
+if [[ $NO_RUN -eq 0 ]]; then
+    run_stage 0 "naive AoS"
+    run_stage 1 "SoA"
+    run_stage 2 "SoA + time skewing"
+    run_stage 3 "SoA + skewing + OpenMP" "OMP_PROC_BIND=close OMP_PLACES=cores"
+fi
 
 # ── 4. Correctness gate ───────────────────────────────────────────────────────
 echo "=== Correctness verification (cmp against stage 0 reference) ==="
@@ -71,30 +95,31 @@ fi
 echo ""
 
 # ── 5. Perf profiling ─────────────────────────────────────────────────────────
-echo "=== Profiling (perf stat -r 3) ==="
+echo "=== Profiling (perf stat -r ${PERF_RUNS}) ==="
 
 PERF_EVENTS="cycles,instructions,cache-references,cache-misses,\
 L1-dcache-loads,L1-dcache-load-misses,LLC-loads,LLC-load-misses,\
 dTLB-loads,dTLB-load-misses"
 
-for stage in 0 1 2; do
+for stage in ${STAGES}; do
+    [[ $stage -eq 3 ]] && continue
     if ! has_stage "${stage}"; then continue; fi
     echo ""
     echo "--- Stage ${stage} ---"
     (cd "${BUILD_DIR}" && \
-        perf stat -r 3 \
+        perf stat -r "${PERF_RUNS}" \
         -e "${PERF_EVENTS}" \
         "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n \
         2> "${RESULTS_DIR}/stage${stage}.perf")
     cat "${RESULTS_DIR}/stage${stage}.perf"
 done
 
-if has_stage 3; then
+if has_stage 3 && [[ " ${STAGES} " == *" 3 "* ]]; then
     echo ""
     echo "--- Stage 3 (all physical cores) ---"
     (cd "${BUILD_DIR}" && \
         OMP_PROC_BIND=close OMP_PLACES=cores \
-        perf stat -r 3 \
+        perf stat -r "${PERF_RUNS}" \
         -e "${PERF_EVENTS}" \
         "${BUILD_DIR}/cbram_stage3" "${N}" -n \
         2> "${RESULTS_DIR}/stage3.perf")
@@ -105,8 +130,6 @@ fi
 # Where do the cycles actually go? Level-2 topdown splits Backend Bound into
 # Memory Bound vs Core Bound — the Memory-Bound % is the number that should
 # shrink after the SoA layout change, directly demonstrating the HW/SW insight.
-echo ""
-echo "=== Topdown analysis (frontend / backend / memory bound) ==="
 topdown_one() {
     local stage=$1
     has_stage "${stage}" || return 0
@@ -125,12 +148,17 @@ topdown_one() {
     fi
     cat "${out}"
 }
-topdown_one 0
-topdown_one 1
-topdown_one 2
+if [[ $TOPDOWN -eq 1 ]]; then
+    echo ""
+    echo "=== Topdown analysis (frontend / backend / memory bound) ==="
+    for stage in ${STAGES}; do
+        [[ $stage -eq 3 ]] && continue
+        topdown_one "${stage}"
+    done
+fi
 
 # ── 6. Thread scaling sweep (stage 3) ────────────────────────────────────────
-if has_stage 3; then
+if has_stage 3 && [[ " ${STAGES} " == *" 3 "* ]]; then
     PHYS_CORES=$(lscpu | awk '/^Core\(s\) per socket/ {cores=$NF}
                               /^Socket\(s\)/           {sockets=$NF}
                               END {print cores*sockets}')
@@ -141,7 +169,7 @@ if has_stage 3; then
         echo -n "  OMP_NUM_THREADS=${T} ... "
         (cd "${BUILD_DIR}" && \
             OMP_NUM_THREADS=${T} OMP_PROC_BIND=close OMP_PLACES=cores \
-            perf stat -r 3 -e cycles,instructions,LLC-load-misses \
+            perf stat -r "${PERF_RUNS}" -e cycles,instructions,LLC-load-misses \
             "${BUILD_DIR}/cbram_stage3" "${N}" -n \
             2> "${RESULTS_DIR}/stage3_t${T}.perf")
         grep "seconds time elapsed" "${RESULTS_DIR}/stage3_t${T}.perf" | head -1
@@ -182,10 +210,14 @@ flamegraph_one() {
     perf report -i "${data}" --stdio --no-children 2>/dev/null | \
         grep -E '^\s+[0-9]+\.[0-9]+%' | head -8
 }
-flamegraph_one 0
-flamegraph_one 1
-flamegraph_one 2
-flamegraph_one 3
+pids=(); logs=()
+for stage in ${STAGES}; do
+    log=$(mktemp); logs+=("${stage}:${log}")
+    flamegraph_one "${stage}" > "${log}" 2>&1 &
+    pids+=($!)
+done
+wait "${pids[@]}"
+for entry in "${logs[@]}"; do cat "${entry#*:}"; rm -f "${entry#*:}"; done
 
 # ── 8. Diff summary ───────────────────────────────────────────────────────────
 echo ""
