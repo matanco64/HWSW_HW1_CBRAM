@@ -32,7 +32,7 @@
   #text(15pt, weight: "bold")[Profiling and Optimizing a CBRAM Filament-Growth Simulation]
   #v(0.2em)
   #text(9.7pt)[
-    Matan Cohen (ID: #underline[#h(2.2em)]) #h(1.2em) · #h(1.2em) Yuval #underline[#h(3em)] (ID: #underline[#h(2.2em)]) \
+    Matan Cohen (ID: #underline[#h(0.5em) <ID>]) #h(1.2em) · #h(1.2em) Yuval Kogan (ID: #underline[#h(0.5em)  <ID>]) \
     HW/SW Co-Design — HW1 · #datetime.today().display("[month repr:long] [year]")
   ]
 ]

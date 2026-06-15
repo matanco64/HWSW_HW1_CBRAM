@@ -194,6 +194,11 @@ int main(int argc, char* argv[]) {
     metal[(N - 2) * N + (N / 2)] = 1;
 
     mkdir("frames_stage1", 0755);
+    FILE* ts_fp = nullptr;
+    if (dump_frames) {
+        ts_fp = fopen("frames_stage1/frame_timestamps.csv", "w");
+        if (ts_fp) fprintf(ts_fp, "step,elapsed_ms\n");
+    }
     std::vector<int32_t> sigma_buf(nn), V_buf(nn);
     std::vector<int>     cand;              // candidate cell indices (row-major order)
 
@@ -219,6 +224,12 @@ int main(int argc, char* argv[]) {
         if (dump_frames && step % frame_int == 0) {   // phase 4: output
             snapshot_fields(V, metal, N, V_buf, sigma_buf);
             write_frame(step, N, V_buf, sigma_buf);
+            if (ts_fp) {
+                double ms = std::chrono::duration<double>(
+                    std::chrono::steady_clock::now() - t_start).count() * 1000.0;
+                fprintf(ts_fp, "%d,%.1f\n", step, ms);
+                fflush(ts_fp);
+            }
         }
 
         if (chosen / N <= 1) { bridged = true; break; }   // reached the anode
@@ -230,8 +241,15 @@ int main(int argc, char* argv[]) {
 
     // Final state → buffers, used for both the closing frame and the dumps.
     snapshot_fields(V, metal, N, V_buf, sigma_buf);
-    if (dump_frames)                                  // closing frame for the video
-        write_frame(step, N, V_buf, sigma_buf);
+    if (dump_frames) {
+        write_frame(step, N, V_buf, sigma_buf);       // closing frame for the video
+        if (ts_fp) {
+            double ms = std::chrono::duration<double>(
+                std::chrono::steady_clock::now() - t_start).count() * 1000.0;
+            fprintf(ts_fp, "%d,%.1f\n", step, ms);
+            fclose(ts_fp);
+        }
+    }
     dump_binary("V_final_stage1.bin", V_buf.data(), N);
     dump_binary("sigma_final_stage1.bin", sigma_buf.data(), N);
 
