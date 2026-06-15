@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # make_video.sh — build, frames run, and render an MP4 for one CBRAM stage.
-# Usage: ./make_video.sh [stage] [N] [fps] [frame_interval]
+# Usage: ./make_video.sh [--no-build] [stage] [N] [fps] [frame_interval]
+#   --no-build      skip the build step (useful when called from make_comparison.sh)
 #   stage           which stage to run (default 0)
 #   N               grid size (default 200; smaller = faster run + tiny grid)
 #   fps             output video frame rate (default 30)
@@ -14,6 +15,9 @@ set -euo pipefail
 SRCDIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${SRCDIR}/build"
 
+NO_BUILD=0
+if [[ "${1:-}" == "--no-build" ]]; then NO_BUILD=1; shift; fi
+
 STAGE="${1:-0}"
 N="${2:-200}"
 FPS="${3:-30}"
@@ -24,9 +28,11 @@ FRAMES_DIR="${BUILD_DIR}/frames_stage${STAGE}"
 OUT="${SRCDIR}/filament_stage${STAGE}.mp4"
 
 # ── 1. Build ──────────────────────────────────────────────────────────────────
-echo "=== Building ==="
-bash "${SRCDIR}/build.sh"
-echo ""
+if [[ $NO_BUILD -eq 0 ]]; then
+    echo "=== Building ==="
+    bash "${SRCDIR}/build.sh"
+    echo ""
+fi
 
 if [[ ! -f "${BINARY}" ]]; then
     echo "ERROR: ${BINARY} not found after build (stage ${STAGE} may not exist yet)."

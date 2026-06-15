@@ -28,7 +28,9 @@
       "Bash(g++ -O2 -march=native -std=c++17 -Wall -Wno-unused-result -I. dbm_stage0.cpp io.cpp -o /tmp/test_stage0)",
       "Bash(g++ -O2 -march=native -std=c++17 -Wall -Wno-unused-result -I. dbm_stage1.cpp io.cpp -o /tmp/test_stage1)",
       "Bash(g++ -O2 -march=native -std=c++17 -Wall -Wno-unused-result -I. dbm_stage2.cpp io.cpp -o /tmp/test_stage2)",
-      "Bash(typst compile *)"
+      "Bash(typst compile *)",
+      "Bash(chmod +x /home/matan-cohen/projects/HWSW_HW1_CBRAM/make_comparison.sh)",
+      "Bash(bash make_comparison.sh 200 10 3.0 0 1 2)"
     ]
   }
 }
