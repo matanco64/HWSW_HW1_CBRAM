@@ -163,8 +163,10 @@ def render(vf_idx):
     speedup_str = "  |  ".join(
         f"S{s}: {speedups[s]:.2f}x" for s in stages if s != stages[0]
     )
+    rate  = 1.0 / TIME_SCALE
+    speed = f"{rate:.0f}x real-time" if rate >= 1 else f"real-time x {TIME_SCALE:.0f}"
     fig.suptitle(
-        f"t = {real_ms:.0f} ms   (real-time x 1/{TIME_SCALE:.0f})    {speedup_str}",
+        f"t = {real_ms:.0f} ms   (playback {speed})    {speedup_str}",
         color="#aaaaaa", fontsize=11, x=0.5, ha="center", y=0.98,
     )
     fig.tight_layout(rect=[0, 0, 1, 0.95])

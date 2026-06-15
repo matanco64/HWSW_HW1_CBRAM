@@ -4,12 +4,9 @@ project(CBRAM_Simulation CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Common flags for all stages — must be identical (except OpenMP on stage 3)
+# Common flags for all stages — must be identical across stages
 set(COMMON_FLAGS "-O2 -g -march=native -Wall -Wno-unused-result")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS}")
-
-# TODO: uncomment when cbram_stage3 is added
-# find_package(OpenMP REQUIRED)
 
 # Shared I/O library (compiled once, linked into every stage)
 add_library(cbram_io STATIC io.cpp)
@@ -27,13 +24,7 @@ target_link_libraries(cbram_stage1 PRIVATE cbram_io)
 add_executable(cbram_stage2 dbm_stage2.cpp)
 target_link_libraries(cbram_stage2 PRIVATE cbram_io)
 
-# ── Stage 3: SoA + time skewing + OpenMP ─────────────────────────────────────
-# TODO: uncomment when opt3_omp.cpp is written
-# add_executable(cbram_stage3 opt3_omp.cpp)
-# target_link_libraries(cbram_stage3 PRIVATE cbram_io OpenMP::OpenMP_CXX)
-
 # ── Convenience target: build all stages ──────────────────────────────────────
-# TODO: add cbram_stage1 cbram_stage2 cbram_stage3 once their sources exist
 add_custom_target(all_stages
     DEPENDS cbram_stage0 cbram_stage1 cbram_stage2
     COMMENT "Building all available CBRAM simulation stages"
@@ -44,7 +35,6 @@ message(STATUS "")
 message(STATUS "CBRAM Simulation — Build Configuration")
 message(STATUS "  Compiler : ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "  Flags    : ${CMAKE_CXX_FLAGS}")
-message(STATUS "  OpenMP   : ${OpenMP_CXX_VERSION}")
 message(STATUS "")
 message(STATUS "Run:  cmake -B build -S . && cmake --build build")
 message(STATUS "")

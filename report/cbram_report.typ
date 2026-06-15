@@ -43,17 +43,19 @@
 #line(length: 100%, stroke: 0.4pt)
 
 // ── Hero figure (a still frame extracted from comparison_0vs1.mp4) ───────────
+// A real-time race frame: the instant SoA has bridged but AoS has not.
 // To re-render this PNG after regenerating the video, run:  report/regen_assets.sh
 #v(0.2em)
 #figure(
   kind: image, supplement: [Figure],
   image("assets/filament_0vs1.png", width: 14.5cm),
-  caption: [Final bridged filament ($eta=3$). *Top:* Stage 0 (AoS); *bottom:*
-    Stage 1 (SoA) — each row shows the filament $sigma$, the potential $phi$, and
-    the field magnitude $|nabla phi|$ (note how the field concentrates at the
-    advancing tip and drives the next growth step). The two rows are
-    *pixel-identical*: the visual form of the bit-identical `cmp` correctness gate
-    that every optimization in this report must pass.],
+  caption: [A single real-time instant from a side-by-side race ($eta=3$,
+    $N=1024$). *Top:* Stage 0 (AoS); *bottom:* Stage 1 (SoA) — each row shows the
+    filament $sigma$, the potential $phi$, and the field $|nabla phi|$ (note how it
+    concentrates at the advancing tip and drives the next growth step). Because the
+    stages are *bit-identical* they trace the same growth sequence, so this is a
+    fair race: at this same wall-clock moment SoA has already *bridged* (step 3209)
+    while AoS is only halfway (step 1800). The on-screen gap *is* the speed-up.],
 )
 #v(0.2em)
 
@@ -72,9 +74,15 @@ narrow branched filament emerges - the morphology CBRAM exhibits (Fig. 1).
 
 The simulation is overwhelmingly dominated by step (i): every growth step runs
 `JACOBI_ITERS = 30` double-buffered stencil sweeps over the whole grid, and there
-are $O(N^2)$ growth steps. This makes the *Jacobi sweep a textbook
-memory-bandwidth-bound stencil* - exactly the kernel where data-layout and
-cache-locality optimizations are decisive, which is why we chose it.
+are $O(N^2)$ growth steps. This makes the *Jacobi sweep a low-arithmetic-intensity,
+memory-bound stencil* - exactly the kernel where data-layout and cache-locality
+optimizations are decisive, which is why we chose it. The *binding* resource,
+though, depends on the core count: on one core we sustain $lt 1%$ of peak DRAM
+bandwidth throughout (0.51 GB/s at baseline, $approx 0.9%$ of the $approx 59$ GB/s
+peak), so the limiter is memory *latency* - a single core cannot keep enough misses
+in flight to saturate the bus - and an optimization pays off by issuing *fewer
+misses*, not by relieving a saturated bus. Raw bandwidth becomes binding only once
+many cores share that bus, a distinction Stage 2 turns out to hinge on (§4).
 
 *Methodology.*
 - *One source file per stage* (`dbm_stage0..2.cpp`), identical compiler flags (`-O2 -march=native -std=c++17`).
@@ -85,8 +93,9 @@ cache-locality optimizations are decisive, which is why we chose it.
 #block(fill: luma(245), inset: 6pt, radius: 3pt, width: 100%)[
   *Measurement note.* Numbers are from the #machine. Being a single core with no
   hybrid-PMU split or thermal throttling, runs are highly repeatable ($lt.eq 1.3%$
-  spread over 3 runs). We cross-checked every trend on a laptop (Core Ultra 7
-  155H, 24 MB L3); the relationships between stages were identical.
+  spread over 3 runs). The virtualized PMU exposes cycles, instructions, and
+  cache/L1/dTLB counters; LLC and top-down events are unavailable, so DRAM traffic
+  is read from the last-level `cache-misses` event.
 ]
 
 = Baseline: Array-of-Structs (Stage 0)

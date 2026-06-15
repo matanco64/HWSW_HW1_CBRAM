@@ -36,7 +36,10 @@
       "Bash(typst compile *)",
       "Bash(chmod +x /home/matan-cohen/projects/HWSW_HW1_CBRAM/make_comparison.sh)",
       "Bash(bash make_comparison.sh 200 10 3.0 0 1 2)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(rm -f frames_stage0/frame_*.bin frames_stage1/frame_*.bin)",
+      "Bash(time ./cbram_stage1 1024 -f -F 25)",
+      "Bash(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 comparison_0vs1.mp4)"
     ]
   }
 }
