@@ -1,16 +1,16 @@
 
- Performance counter stats for '/root/HWSW_HW1_CBRAM/build/cbram_stage0 500 -n' (3 runs):
+ Performance counter stats for '/root/HWSW_HW1_CBRAM/build/cbram_stage0 6144 -n -s 80' (3 runs):
 
-       77490476898      cycles                                                        ( +-  0.36% )  (62.49%)
-      169991551617      instructions              #    2.18  insn per cycle           ( +-  0.02% )  (74.99%)
-         382888261      cache-references                                              ( +-  0.10% )  (74.99%)
-             51229      cache-misses              #    0.013 % of all cache refs      ( +- 17.94% )  (74.99%)
-       26617161314      L1-dcache-loads                                               ( +-  0.05% )  (74.99%)
-        4188213301      L1-dcache-load-misses     #   15.74% of all L1-dcache accesses  ( +-  0.04% )  (74.99%)
+      822038891651      cycles                                                        ( +-  0.06% )  (62.50%)
+     1508452560875      instructions              #    1.84  insn per cycle           ( +-  0.01% )  (75.00%)
+       13684732116      cache-references                                              ( +-  0.33% )  (75.00%)
+        2844381233      cache-misses              #   20.909 % of all cache refs      ( +-  0.18% )  (74.99%)
+      231788579563      L1-dcache-loads                                               ( +-  0.03% )  (75.00%)
+       43842451191      L1-dcache-load-misses     #   18.91% of all L1-dcache accesses  ( +-  0.02% )  (75.01%)
    <not supported>      LLC-loads                                                   
    <not supported>      LLC-load-misses                                             
-       37620230889      dTLB-loads                                                    ( +-  0.03% )  (50.02%)
-           2713637      dTLB-load-misses          #    0.01% of all dTLB cache accesses  ( +-  3.64% )  (50.02%)
+      328208584782      dTLB-loads                                                    ( +-  0.03% )  (50.00%)
+         546086899      dTLB-load-misses          #    0.17% of all dTLB cache accesses  ( +-  0.20% )  (50.00%)
 
-            33.939 +- 0.319 seconds time elapsed  ( +-  0.94% )
+            358.43 +- 1.50 seconds time elapsed  ( +-  0.42% )
 

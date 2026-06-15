@@ -1,6 +1,6 @@
 <?xml version="1.0" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg version="1.1" width="1200" height="198" onload="init(evt)" viewBox="0 0 1200 198" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<svg version="1.1" width="1200" height="358" onload="init(evt)" viewBox="0 0 1200 358" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 <!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
 <!-- NOTES:  -->
 <defs>
@@ -422,57 +422,97 @@
 	}
 ]]>
 </script>
-<rect x="0.0" y="0" width="1200.0" height="198.0" fill="url(#background)"  />
-<text id="title" x="600.00" y="24" >cbram_stage1 (N=500)</text>
-<text id="details" x="10.00" y="181" > </text>
+<rect x="0.0" y="0" width="1200.0" height="358.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >cbram_stage1 (N=6144)</text>
+<text id="details" x="10.00" y="341" > </text>
 <text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
 <text id="search" x="1090.00" y="24" >Search</text>
 <text id="ignorecase" x="1174.00" y="24" >ic</text>
-<text id="matched" x="1090.00" y="181" > </text>
+<text id="matched" x="1090.00" y="341" > </text>
 <g id="frames">
 <g >
-<title>[libc.so.6] (26,578,578,552 samples, 100.00%)</title><rect x="10.0" y="85" width="1180.0" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
-<text  x="13.04" y="95.5" >[libc.so.6]</text>
+<title>std::__fill_n_a&lt;int*, unsigned long, int&gt; (110,110,110 samples, 0.05%)</title><rect x="1189.4" y="85" width="0.6" height="15.0" fill="rgb(224,89,21)" rx="2" ry="2" />
+<text  x="1192.40" y="95.5" ></text>
 </g>
 <g >
-<title>all (26,579,579,553 samples, 100%)</title><rect x="10.0" y="149" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
-<text  x="13.00" y="159.5" ></text>
+<title>_start (231,736,736,505 samples, 100.00%)</title><rect x="10.0" y="277" width="1180.0" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="13.01" y="287.5" >_start</text>
 </g>
 <g >
-<title>main (25,243,243,218 samples, 94.97%)</title><rect x="69.3" y="37" width="1120.7" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
-<text  x="72.28" y="47.5" >main</text>
+<title>all (231,737,737,506 samples, 100%)</title><rect x="10.0" y="309" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="13.00" y="319.5" ></text>
 </g>
 <g >
-<title>_start (26,578,578,552 samples, 100.00%)</title><rect x="10.0" y="117" width="1180.0" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
-<text  x="13.04" y="127.5" >_start</text>
+<title>cbram_stage1 (231,737,737,506 samples, 100.00%)</title><rect x="10.0" y="293" width="1180.0" height="15.0" fill="rgb(206,8,2)" rx="2" ry="2" />
+<text  x="13.00" y="303.5" >cbram_stage1</text>
 </g>
 <g >
-<title>std::vector&lt;int, std::allocator&lt;int&gt; &gt;::push_back (12,012,012 samples, 0.05%)</title><rect x="10.0" y="37" width="0.6" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
-<text  x="13.04" y="47.5" ></text>
+<title>std::vector&lt;int, std::allocator&lt;int&gt; &gt;::_M_default_initialize (110,110,110 samples, 0.05%)</title><rect x="1189.4" y="197" width="0.6" height="15.0" fill="rgb(210,25,6)" rx="2" ry="2" />
+<text  x="1192.40" y="207.5" ></text>
 </g>
 <g >
-<title>main (26,578,578,552 samples, 100.00%)</title><rect x="10.0" y="69" width="1180.0" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
-<text  x="13.04" y="79.5" >main</text>
+<title>main (220,684,684,464 samples, 95.23%)</title><rect x="65.7" y="197" width="1123.7" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
+<text  x="68.69" y="207.5" >main</text>
 </g>
 <g >
-<title>collect_candidates (12,012,012 samples, 0.05%)</title><rect x="10.0" y="53" width="0.6" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
-<text  x="13.04" y="63.5" ></text>
+<title>std::__uninitialized_default_n&lt;int*, unsigned long&gt; (110,110,110 samples, 0.05%)</title><rect x="1189.4" y="165" width="0.6" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="1192.40" y="175.5" ></text>
 </g>
 <g >
-<title>__libc_start_main (26,578,578,552 samples, 100.00%)</title><rect x="10.0" y="101" width="1180.0" height="15.0" fill="rgb(236,142,34)" rx="2" ry="2" />
-<text  x="13.04" y="111.5" >__libc_start_main</text>
+<title>std::__uninitialized_default_n_a&lt;int*, unsigned long, int&gt; (110,110,110 samples, 0.05%)</title><rect x="1189.4" y="181" width="0.6" height="15.0" fill="rgb(206,5,1)" rx="2" ry="2" />
+<text  x="1192.40" y="191.5" ></text>
 </g>
 <g >
-<title>cbram_stage1 (26,579,579,553 samples, 100.00%)</title><rect x="10.0" y="133" width="1180.0" height="15.0" fill="rgb(206,8,2)" rx="2" ry="2" />
-<text  x="13.00" y="143.5" >cbram_stage1</text>
+<title>main (10,913,913,903 samples, 4.71%)</title><rect x="10.1" y="213" width="55.6" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
+<text  x="13.11" y="223.5" >main</text>
 </g>
 <g >
-<title>main (1,320,320,319 samples, 4.97%)</title><rect x="10.6" y="53" width="58.6" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
-<text  x="13.58" y="63.5" >main</text>
+<title>std::__uninitialized_default_n_1&lt;true&gt;::__uninit_default_n&lt;int*, unsigned long&gt; (110,110,110 samples, 0.05%)</title><rect x="1189.4" y="133" width="0.6" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="1192.40" y="143.5" ></text>
 </g>
 <g >
-<title>solve_potential (25,243,243,218 samples, 94.97%)</title><rect x="69.3" y="53" width="1120.7" height="15.0" fill="rgb(222,81,19)" rx="2" ry="2" />
-<text  x="72.28" y="63.5" >solve_potential</text>
+<title>solve_potential (220,684,684,464 samples, 95.23%)</title><rect x="65.7" y="213" width="1123.7" height="15.0" fill="rgb(222,81,19)" rx="2" ry="2" />
+<text  x="68.69" y="223.5" >solve_potential</text>
+</g>
+<g >
+<title>std::__fill_a1&lt;int*, int&gt; (110,110,110 samples, 0.05%)</title><rect x="1189.4" y="53" width="0.6" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="1192.40" y="63.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (110,110,110 samples, 0.05%)</title><rect x="1189.4" y="37" width="0.6" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="1192.40" y="47.5" ></text>
+</g>
+<g >
+<title>std::__fill_a&lt;int*, int&gt; (110,110,110 samples, 0.05%)</title><rect x="1189.4" y="69" width="0.6" height="15.0" fill="rgb(248,202,48)" rx="2" ry="2" />
+<text  x="1192.40" y="79.5" ></text>
+</g>
+<g >
+<title>std::__fill_n_a&lt;int*, unsigned long, int&gt; (110,110,110 samples, 0.05%)</title><rect x="1189.4" y="101" width="0.6" height="15.0" fill="rgb(224,89,21)" rx="2" ry="2" />
+<text  x="1192.40" y="111.5" ></text>
+</g>
+<g >
+<title>std::fill_n&lt;int*, unsigned long, int&gt; (110,110,110 samples, 0.05%)</title><rect x="1189.4" y="117" width="0.6" height="15.0" fill="rgb(242,170,40)" rx="2" ry="2" />
+<text  x="1192.40" y="127.5" ></text>
+</g>
+<g >
+<title>main (231,736,736,505 samples, 100.00%)</title><rect x="10.0" y="229" width="1180.0" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
+<text  x="13.01" y="239.5" >main</text>
+</g>
+<g >
+<title>[libc.so.6] (231,736,736,505 samples, 100.00%)</title><rect x="10.0" y="245" width="1180.0" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="13.01" y="255.5" >[libc.so.6]</text>
+</g>
+<g >
+<title>__libc_start_main (231,736,736,505 samples, 100.00%)</title><rect x="10.0" y="261" width="1180.0" height="15.0" fill="rgb(236,142,34)" rx="2" ry="2" />
+<text  x="13.01" y="271.5" >__libc_start_main</text>
+</g>
+<g >
+<title>std::__uninitialized_default_n_1&lt;true&gt;::__uninit_default_n&lt;int*, unsigned long&gt; (110,110,110 samples, 0.05%)</title><rect x="1189.4" y="149" width="0.6" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="1192.40" y="159.5" ></text>
+</g>
+<g >
+<title>std::vector&lt;int, std::allocator&lt;int&gt; &gt;::vector (110,110,110 samples, 0.05%)</title><rect x="1189.4" y="213" width="0.6" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="1192.40" y="223.5" ></text>
 </g>
 </g>
 </svg>
