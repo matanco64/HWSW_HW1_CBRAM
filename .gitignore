@@ -74,6 +74,19 @@ cbram_stage1
 cbram_stage2
 cbram_stage3
 results/*.data*
+# raw perf-record dumps are huge — ignore them in any results dir
+*.data
+*.data.old
 
 # FlameGraph git repo
 FlameGraph
+
+# IDE
+.idea/
+
+# Submission artifacts (regenerate with ./make_submission.sh)
+/submission/
+/cbram_hw1_submission.zip
+
+# Typst render artifacts (page previews; the real output is cbram_report.pdf)
+report/page_*.png
