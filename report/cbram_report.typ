@@ -42,6 +42,21 @@
 #v(0.15em)
 #line(length: 100%, stroke: 0.4pt)
 
+// ── Hero figure (a still frame extracted from comparison_0vs1.mp4) ───────────
+// To re-render this PNG after regenerating the video, run:  report/regen_assets.sh
+#v(0.2em)
+#figure(
+  kind: image, supplement: [Figure],
+  image("assets/filament_0vs1.png", width: 14.5cm),
+  caption: [Final bridged filament ($eta=3$). *Top:* Stage 0 (AoS); *bottom:*
+    Stage 1 (SoA) — each row shows the filament $sigma$, the potential $phi$, and
+    the field magnitude $|nabla phi|$ (note how the field concentrates at the
+    advancing tip and drives the next growth step). The two rows are
+    *pixel-identical*: the visual form of the bit-identical `cmp` correctness gate
+    that every optimization in this report must pass.],
+)
+#v(0.2em)
+
 = Problem and approach
 
 We simulate conductive-bridge RAM (CBRAM) forming, the physical event that
@@ -53,7 +68,7 @@ potential $nabla^2 V = 0$ with the existing filament pinned to the cathode
 ($V=0$) and the anode held at $V_"app"$, then (ii) adds one filament-adjacent
 empty cell, chosen at random with probability $prop V^eta$ ($eta = 3$). The
 field concentrates at the filament tip, so growth is self-reinforcing and a
-narrow branched filament emerges - the morphology CBRAM exhibits.
+narrow branched filament emerges - the morphology CBRAM exhibits (Fig. 1).
 
 The simulation is overwhelmingly dominated by step (i): every growth step runs
 `JACOBI_ITERS = 30` double-buffered stencil sweeps over the whole grid, and there
@@ -65,7 +80,7 @@ cache-locality optimizations are decisive, which is why we chose it.
 - *One source file per stage* (`dbm_stage0..2.cpp`), identical compiler flags (`-O2 -march=native -std=c++17`).
 - *Correctness gate:* all arithmetic is fixed-point `int32` (Q16.16) with a deterministic xorshift64 PRNG; every stage must produce a *bit-identical* `V_final` (verified with `cmp`) - optimizations cannot "cheat" by changing the numerics.
 - *Grid size $N = 6144$:* working set $approx 19 times$ the 16 MB L3, so the full memory hierarchy is genuinely exercised.
-- *Identical workload:* each run capped at 80 growth steps; profiled with `perf stat -r 3` plus `perf record` flame graphs (Fig. 1).
+- *Identical workload:* each run capped at 80 growth steps; profiled with `perf stat -r 3` plus `perf record` flame graphs (Fig. 2).
 
 #block(fill: luma(245), inset: 6pt, radius: 3pt, width: 100%)[
   *Measurement note.* Numbers are from the #machine. Being a single core with no
@@ -86,7 +101,7 @@ AoS each `Cell` is 8 bytes, so a 64-byte cache line holds 8 cells and *half of
 every line fetched is the unused `metal` field* - cache-line utilization $approx
 50%$. With the grid $approx 19 times$ the L3 that wasted half *doubles the DRAM
 traffic* the whole hierarchy must move. Two further taxes are visible in the flame
-graph (Fig. 1a): `apply_boundary` - the $O(N^2)$ `pin_cluster` scan re-pinning
+graph (Fig. 2a): `apply_boundary` - the $O(N^2)$ `pin_cluster` scan re-pinning
 every metal cell to $V=0$ on each of the 30 sweeps - is *27%* of the run, and the
 double-buffer `grid_next = grid` copy (`copy_grid`) duplicates `metal` every sweep
 even though only `V` changes - a fat memmove at *20%*.
@@ -104,7 +119,7 @@ the Jacobi sweep now streams `V[]` densely - *16 useful values per 64-byte line
 (~100% utilization)* instead of 8 - so it moves half as many bytes for the same
 work. Two corollaries fall out for free: (1) `metal[]` is *fixed* for all 30
 sweeps of a step, so it is never double-buffered - the per-sweep `metal` memmove
-*disappears entirely* (visible in Fig. 1b: the `copy_grid` block is simply gone);
+*disappears entirely* (visible in Fig. 2b: the `copy_grid` block is simply gone);
 (2) `metal[]` is `uint8_t`, so `pin_cluster` scans 1 byte/cell, an 8#sym.times
 denser scan.
 
@@ -133,7 +148,7 @@ cutting global passes from $30$ to $30 \/ T_"block"$. On paper, a large win.
 Stage 2 has the *best memory behaviour of any stage* - L1-miss #s2.l1m%, just
 #s2.cmiss B last-level misses (#sp(s1.cmiss, s2.cmiss)#sym.times fewer than SoA,
 #sp(s0.cmiss, s2.cmiss)#sym.times fewer than the baseline), and the *highest* IPC
-(#s2.ipc). The restructured tile-marcher (`block_advance`, Fig. 1c) is genuinely
+(#s2.ipc). The restructured tile-marcher (`block_advance`, Fig. 2c) is genuinely
 cache-resident. And yet it is *#sp(s2.time, s1.time)#sym.times slower than plain
 SoA* (#s2.time s vs #s1.time s). The counters say why exactly:
 
