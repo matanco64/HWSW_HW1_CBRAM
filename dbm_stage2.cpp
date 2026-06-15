@@ -35,6 +35,7 @@
 #include "physics_dbm.h"
 #include "io.h"
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -183,6 +184,23 @@ static void solve_potential(std::vector<int32_t>& V, std::vector<int32_t>& V_nex
         V.swap(V_next);
 }
 
+// ── Progress bar ─────────────────────────────────────────────────────────────
+
+static void print_bar(int step, int tip_row, int N, double elapsed) {
+    int span   = N - 3;
+    int done   = N - 2 - tip_row;
+    if (done < 0) done = 0;
+    double frac = span > 0 ? (double)done / span : 0.0;
+    if (frac > 1.0) frac = 1.0;
+    int filled  = (int)(frac * 30);
+    double eta  = (frac > 0.005 && elapsed > 0) ? elapsed * (1.0 - frac) / frac : 0.0;
+    fprintf(stderr, "\r  [");
+    for (int i = 0; i < 30; ++i) fputc(i < filled ? '#' : ' ', stderr);
+    fprintf(stderr, "] row %-4d  step %-7d  %.0f step/s  ETA %.0fs   ",
+            tip_row, step, step / (elapsed + 1e-9), eta);
+    fflush(stderr);
+}
+
 // ── Per-step phases (unchanged from stage 1) ────────────────────────────────
 
 static void collect_candidates(const std::vector<uint8_t>& metal, int N,
@@ -244,14 +262,14 @@ int main(int argc, char* argv[]) {
     bool verbose = false;
     bool dump_frames = false;   // opt-in: -f enables per-frame dumps (for the video)
     int max_steps = 0;          // -s K caps growth steps; 0 = run until bridged.
-                                // Lets large-N profiling runs do a fixed, identical
-                                // amount of work per stage instead of a full bridge.
+    int frame_int = FRAME_INTERVAL;  // overridable with -F K
     for (int i = 1; i < argc; ++i) {
         if (argv[i][0] == '-') {
             if (argv[i][1] == 'v') verbose = true;
             else if (argv[i][1] == 'f') dump_frames = true;
             else if (argv[i][1] == 'n') dump_frames = false;   // legacy no-op (off is the default)
             else if (argv[i][1] == 's' && i + 1 < argc) max_steps = atoi(argv[++i]);
+            else if (argv[i][1] == 'F' && i + 1 < argc) frame_int = atoi(argv[++i]);
         }
         else N = atoi(argv[i]);
     }
@@ -276,6 +294,7 @@ int main(int argc, char* argv[]) {
     bool bridged = false;
     int  step    = 0;
     int  limit   = (max_steps > 0 && max_steps < (int)nn) ? max_steps : (int)nn;
+    auto t_start = std::chrono::steady_clock::now();
     for (step = 0; step < limit; ++step) {
         solve_potential(V, V_next, metal, N);      // phase 1: time-blocked Jacobi
 
@@ -285,11 +304,13 @@ int main(int argc, char* argv[]) {
         int chosen = pick_candidate(V, cand, rng);
         metal[chosen] = 1;
 
-        if (verbose && step % FRAME_INTERVAL == 0)
-            fprintf(stderr, "\r  step %d  cells %d  tip_row %d   ",
-                    step, step + 1, chosen / N);
+        if (verbose && step % frame_int == 0) {
+            double elapsed = std::chrono::duration<double>(
+                std::chrono::steady_clock::now() - t_start).count();
+            print_bar(step, chosen / N, N, elapsed);
+        }
 
-        if (dump_frames && step % FRAME_INTERVAL == 0) {
+        if (dump_frames && step % frame_int == 0) {
             snapshot_fields(V, metal, N, V_buf, sigma_buf);
             write_frame(step, N, V_buf, sigma_buf);
         }

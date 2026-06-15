@@ -24,7 +24,11 @@
       "Bash(./cbram_stage0 200 -n)",
       "Bash(python3 -c \"import math; print\\('committed N =', int\\(math.isqrt\\(__import__\\('os'\\).path.getsize\\('V_final_stage0.bin'\\)//4\\)\\)\\)\")",
       "Bash(grep *)",
-      "Bash(./cbram_stage0 500 -n)"
+      "Bash(./cbram_stage0 500 -n)",
+      "Bash(g++ -O2 -march=native -std=c++17 -Wall -Wno-unused-result -I. dbm_stage0.cpp io.cpp -o /tmp/test_stage0)",
+      "Bash(g++ -O2 -march=native -std=c++17 -Wall -Wno-unused-result -I. dbm_stage1.cpp io.cpp -o /tmp/test_stage1)",
+      "Bash(g++ -O2 -march=native -std=c++17 -Wall -Wno-unused-result -I. dbm_stage2.cpp io.cpp -o /tmp/test_stage2)",
+      "Bash(typst compile *)"
     ]
   }
 }
