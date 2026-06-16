@@ -36,6 +36,8 @@ cp "${REPO}/report/names_and_ids.pdf" "${OUT}/"
 cp "${REPO}"/dbm_stage0.cpp "${REPO}"/dbm_stage1.cpp "${REPO}"/dbm_stage2.cpp "${OUT}/"
 # Shared sources needed to compile the stages.
 cp "${REPO}"/physics_dbm.h "${REPO}"/io.h "${REPO}"/io.cpp "${OUT}/"
+# flush_cache (cold-cache helper built by build.sh); perf_metrics.py (run.sh step 9).
+cp "${REPO}"/flush_cache.cpp "${REPO}"/perf_metrics.py "${OUT}/"
 
 # Component 4: compile / run / profile scripts.
 cp "${REPO}"/build.sh "${REPO}"/run.sh "${REPO}"/CMakeLists.txt "${OUT}/"

@@ -41,7 +41,10 @@
       "Bash(time ./cbram_stage1 1024 -f -F 25)",
       "Bash(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 comparison_0vs1.mp4)",
       "Bash(git push *)",
-      "Bash(git branch *)"
+      "Bash(git branch *)",
+      "Bash(pdftotext submission/cbram_report.pdf -)",
+      "Bash(pdftotext submission/names_and_ids.pdf -)",
+      "Bash(awk '{print $5,$9}')"
     ]
   }
 }

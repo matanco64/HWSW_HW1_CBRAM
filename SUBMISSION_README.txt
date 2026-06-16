@@ -16,6 +16,8 @@ Also included:
                            temporal blocking) that did NOT pay off — analysed in
                            the report as our "approach that didn't work".
   physics_dbm.h, io.h, io.cpp ... shared sources needed to compile the stages.
+  flush_cache.cpp ........ cold-cache helper built by build.sh before each timed run.
+  perf_metrics.py ........ derives the IPC / miss-rate table (run.sh, final step).
   CMakeLists.txt ......... alternative build (cmake -B build -S . && cmake --build build).
   prompts.md ............. log of the AI prompts used (required by the brief).
   comparison_0vs1.mp4 .... real-time race of stage 0 vs stage 1 (the speed-up, visualised).

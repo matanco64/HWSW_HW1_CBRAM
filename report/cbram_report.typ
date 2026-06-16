@@ -228,3 +228,12 @@ memory advantage to finally turn into wall-clock.
     change (a→b) erases the memmove; time-skewing (c) reorganizes the whole solve
     around tiles.],
 )
+
+= Reproducing these results
+Every number and figure above regenerates from the bundled sources (file map in
+`README.txt`). From the submission root:
+- `./build.sh` - compiles `cbram_stage0/1/2` with *identical* flags (`-O2 -march=native -std=c++17`) into `build/`.
+- `./run.sh 6144 80` - the exact pipeline used here: build, log the CPU to `env.txt`, run all three stages at $N=6144$ / 80 steps, *gate* each `V_final` bit-identical to Stage 0 with `cmp`, then `perf stat -r 3` (#sym.arrow `results/stage{0,1,2}.perf`) and `perf record` flame graphs (#sym.arrow `results/stage*_flamegraph.svg`, Fig. 2).
+- One stage + correctness check: `./build/cbram_stage1 6144 -s 80`, then `cmp build/V_final_stage1.bin build/V_final_stage0.bin` (silent = bit-identical).
+
+Figure 1 is a frame of `comparison_0vs1.mp4`; the numbers above are from the #machine.
