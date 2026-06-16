@@ -90,8 +90,7 @@ many cores share that bus, a distinction Stage 2 turns out to hinge on (§4).
 - *Identical workload:* each run capped at 80 growth steps; profiled with `perf stat -r 3` plus `perf record` flame graphs (Fig. 2).
 
 #block(fill: luma(245), inset: 6pt, radius: 3pt, width: 100%)[
-  *Measurement note.* Numbers are from the #machine. Being a single core with no
-  hybrid-PMU split or thermal throttling, runs are highly repeatable ($lt.eq 1.3%$
+  *Measurement note.* Numbers are from the #machine. runs are highly repeatable ($lt.eq 1.3%$
   spread over 3 runs). The virtualized PMU exposes cycles, instructions, and
   cache/L1/dTLB counters; LLC and top-down events are unavailable, so DRAM traffic
   is read from the last-level `cache-misses` event.
