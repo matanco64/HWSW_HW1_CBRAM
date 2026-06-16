@@ -66,6 +66,8 @@ run_stage() {
     fi
     echo "=== Running stage ${stage} (${label}, N=${N}, steps=${STEPS}) ==="
     mkdir -p "${BUILD_DIR}/frames_stage${stage}"
+    # Flush caches before timing so the run starts from a cold-cache state.
+    [[ -x "${BUILD_DIR}/flush_cache" ]] && "${BUILD_DIR}/flush_cache" > /dev/null
     # Run from BUILD_DIR so output files land there. Frame dumps are opt-in
     # (-f) and deliberately NOT enabled here; `time` logs wall/user per run.
     (cd "${BUILD_DIR}" && \
@@ -115,6 +117,7 @@ for stage in ${STAGES}; do
     if ! has_stage "${stage}"; then continue; fi
     echo ""
     echo "--- Stage ${stage} ---"
+    [[ -x "${BUILD_DIR}/flush_cache" ]] && "${BUILD_DIR}/flush_cache" > /dev/null
     (cd "${BUILD_DIR}" && \
         perf stat -r "${PERF_RUNS}" \
         -e "${PERF_EVENTS}" \
@@ -126,6 +129,7 @@ done
 if has_stage 3 && [[ " ${STAGES} " == *" 3 "* ]]; then
     echo ""
     echo "--- Stage 3 (all physical cores) ---"
+    [[ -x "${BUILD_DIR}/flush_cache" ]] && "${BUILD_DIR}/flush_cache" > /dev/null
     (cd "${BUILD_DIR}" && \
         OMP_PROC_BIND=close OMP_PLACES=cores \
         perf stat -r "${PERF_RUNS}" \
@@ -206,6 +210,7 @@ flamegraph_one() {
     local svg="${RESULTS_DIR}/stage${stage}_flamegraph.svg"
     echo ""
     echo "--- Stage ${stage} ---"
+    [[ -x "${BUILD_DIR}/flush_cache" ]] && "${BUILD_DIR}/flush_cache" > /dev/null
     (cd "${BUILD_DIR}" && \
         perf record -e cpu-clock:u -F 999 --call-graph dwarf \
         -o "${data}" \

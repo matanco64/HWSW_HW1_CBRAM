@@ -24,6 +24,9 @@ target_link_libraries(cbram_stage1 PRIVATE cbram_io)
 add_executable(cbram_stage2 dbm_stage2.cpp)
 target_link_libraries(cbram_stage2 PRIVATE cbram_io)
 
+# ── Cache-flush utility ───────────────────────────────────────────────────────
+add_executable(flush_cache flush_cache.cpp)
+
 # ── Convenience target: build all stages ──────────────────────────────────────
 add_custom_target(all_stages
     DEPENDS cbram_stage0 cbram_stage1 cbram_stage2
