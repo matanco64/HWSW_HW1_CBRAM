@@ -1,6 +1,6 @@
 HW1 — Code Profiling, Optimization, and HW/SW Understanding
 CBRAM Filament-Growth Simulation (Dielectric Breakdown Model)
-Submitters: Matan Cohen (<ID>), Yuval Kogan (<ID>)
+Submitters: Matan Cohen, Yuval Kogan
 
 ================================================================================
 MAPPING TO THE REQUIRED SUBMISSION COMPONENTS

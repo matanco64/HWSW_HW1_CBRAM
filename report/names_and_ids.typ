@@ -14,9 +14,9 @@
 #text(13pt, weight: "bold")[Submitters]
 #v(0.5cm)
 #text(12pt)[
-  Matan Cohen #h(1em) — #h(1em) ID <ID> \
+  Matan Cohen #h(1em) — #h(1em) ID #sys.inputs.at("matan-id", default: "<ID>") \
   #v(0.3cm)
-  Yuval Kogan #h(1em) — #h(1em) ID <ID>
+  Yuval Kogan #h(1em) — #h(1em) ID #sys.inputs.at("yuval-id", default: "<ID>")
 ]
 
 #v(0.8cm)

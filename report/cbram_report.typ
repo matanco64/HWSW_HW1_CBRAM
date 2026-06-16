@@ -35,8 +35,9 @@
   #text(15pt, weight: "bold")[Profiling and Optimizing a CBRAM Filament-Growth Simulation]
   #v(0.2em)
   #text(9.7pt)[
-    Matan Cohen (ID: <ID>) #h(1.2em) · #h(1.2em) Yuval Kogan (ID: <ID>) \
-    HW/SW Co-Design - HW1 · #datetime.today().display("[month repr:long] [year]")
+    Matan Cohen (ID: #sys.inputs.at("matan-id", default: "<ID>")) #h(1.2em) · #h(1.2em) Yuval Kogan (ID: #sys.inputs.at("yuval-id", default: "<ID>")) \
+    HW/SW Co-Design - HW1 · #datetime.today().display("[month repr:long] [year]") \
+    Code & data: #link("https://github.com/matanco64/HWSW_HW1_CBRAM")[`github.com/matanco64/HWSW_HW1_CBRAM`]
   ]
 ]
 #v(0.15em)
@@ -50,9 +51,8 @@
   kind: image, supplement: [Figure],
   image("assets/filament_0vs1.png", width: 14.5cm),
   caption: [A single real-time instant from a side-by-side race ($eta=3$,
-    $N=1024$). *Top:* Stage 0 (AoS); *bottom:* Stage 1 (SoA) — each row shows the
-    filament $sigma$, the potential $phi$, and the field $|nabla phi|$ (note how it
-    concentrates at the advancing tip and drives the next growth step). Because the
+    $N=1024$). *Top:* Stage 0 (AoS); *bottom:* Stage 1 (SoA) - each row shows the
+    filament $sigma$, the potential $phi$, and the field $|nabla phi|$. Because the
     stages are *bit-identical* they trace the same growth sequence, so this is a
     fair race: at this same wall-clock moment SoA has already *bridged* (step 3209)
     while AoS is only halfway (step 1800). The on-screen gap *is* the speed-up.],
@@ -61,8 +61,7 @@
 
 = Problem and approach
 
-We simulate conductive-bridge RAM (CBRAM) forming, the physical event that
-stores a bit: a metallic filament grows across the dielectric until it bridges
+We simulate conductive-bridge RAM (CBRAM) forming, a metallic filament grows across the dielectric until it bridges
 the two electrodes. CBRAM is one physical realization of a *memristor* - a
 two-terminal device whose resistance encodes its history of current flow. We model it with the *Dielectric Breakdown Model* (DBM) on an
 $N times N$ grid. Each *growth step* (i) warm-starts a Jacobi solve of the Laplace
@@ -138,8 +137,8 @@ less DRAM traffic - and with the stalls gone IPC rises *#s0.ipc #sym.arrow #s1.i
 (+#pct(s1.ipc/s0.ipc - 1)%)*. Deleting the copy even cuts instructions
 (#s0.instr B #sym.arrow #s1.instr B). Runtime improves *#s0.time s #sym.arrow
 #s1.time s - a #sp(s0.time, s1.time)#sym.times speed-up*, bit-identical to the
-baseline. This is the clean win: a pure data-layout change that lifts the
-bandwidth ceiling without touching the math - the single most effective
+baseline. This is the clean win: a pure data-layout change that halves the bytes
+moved per sweep without touching the math - the single most effective
 optimization in the project.
 
 = Stage 2 - temporal blocking: a memory win that lost on compute
@@ -182,17 +181,20 @@ for our `TILE`/`T_BLOCK` that overhead *adds #pct(s2.instr/s1.instr - 1)% instru
 (#s1.instr B #sym.arrow #s2.instr B). The higher IPC absorbs some of it - cycles
 rise only +#pct(s2.cyc/s1.cyc - 1)% - but not enough, leaving Stage 2
 #pct(s2.time/s1.time - 1)% slower than SoA. Time-skewing converted a memory-bound
-kernel into a lighter compute-bound one, and the compute it *added* slightly
-outweighed the bandwidth it *saved*.
+kernel into a lighter compute-bound one, and the compute it *added* outweighed the
+traffic it *saved* - traffic that, single-core, was no longer the limiter anyway.
 
 *The lesson.* An optimization that *succeeds at its stated target* can still be a
 net loss. Time-skewing is unambiguously the most cache-friendly stage; it is also
 slower, because a net win needs (a) the resource it saves - DRAM bandwidth - to be
 the *binding* constraint, *and* (b) the price paid elsewhere - instructions here -
-to be *smaller* than the saving. Both must hold; for us only (a) did, and only
-just. Where bandwidth is genuinely the binding constraint - many cores sharing and
-saturating one memory bus - the same code should tip to a win; that multicore
-regime is the natural next step, left as future work.
+to be *smaller* than the saving. On a single core *neither* held in our favour:
+bandwidth was never binding (we ran at $lt 1%$ of peak - the true limiter was
+latency), so the traffic we saved bought almost nothing, while the instructions we
+added were paid in full. Where bandwidth *is* the binding constraint - many cores
+sharing and saturating one memory bus - the saving finally has somewhere to land
+and the same code should tip to a win; that multicore regime is the natural next
+step, left as future work.
 
 = Comparison and conclusions
 
@@ -202,8 +204,8 @@ from $approx$50% to $approx$100% and deleting a per-sweep copy, cutting DRAM
 misses #sp(s0.cmiss, s1.cmiss)#sym.times and lifting IPC #pct(s1.ipc/s0.ipc - 1)%,
 all while staying bit-identical. Temporal blocking (Stage 2) is the more subtle and
 more valuable lesson: it is the *most cache-efficient* stage yet
-*#sp(s2.time, s1.time)#sym.times slower than SoA*, because it traded a bandwidth
-bottleneck it had already won for a compute bottleneck it then lost - +#pct(s2.instr/s1.instr - 1)%
+*#sp(s2.time, s1.time)#sym.times slower than SoA*, because it traded a memory
+bottleneck SoA had already neutralized for a compute bottleneck it then lost - +#pct(s2.instr/s1.instr - 1)%
 instructions for #sp(s1.cmiss, s2.cmiss)#sym.times less traffic that was no longer
 the limiter. The takeaway is the core of HW/SW co-design: profile to find the
 *binding* constraint, and spend complexity only where the resource saved is the

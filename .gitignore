@@ -90,3 +90,11 @@ FlameGraph
 
 # Typst render artifacts (page previews; the real output is cbram_report.pdf)
 report/page_*.png
+
+# Real submitter ID numbers — injected at compile time, never committed.
+report/ids.local
+# Generated report PDFs embed the IDs — regenerate with ./make_submission.sh.
+# (HW1.pdf is the given assignment and stays tracked.)
+report/cbram_report.pdf
+report/names_and_ids.pdf
+report/cbram_bonus.pdf

@@ -10,8 +10,19 @@ OUT="${REPO}/submission"
 ZIP="${REPO}/cbram_hw1_submission.zip"
 
 # ── 1. (Re)build the report + cover PDFs ──────────────────────────────────────
-typst compile "${REPO}/report/cbram_report.typ"   "${REPO}/report/cbram_report.pdf"
-typst compile "${REPO}/report/names_and_ids.typ"  "${REPO}/report/names_and_ids.pdf"
+# Real IDs are injected at compile time from the gitignored report/ids.local so
+# they never live in the repo. Without that file the PDFs show "<ID>".
+IDS="${REPO}/report/ids.local"
+if [[ -f "${IDS}" ]]; then
+  # shellcheck source=/dev/null
+  source "${IDS}"
+else
+  echo "WARNING: ${IDS} not found — compiling with <ID> placeholders." >&2
+fi
+ID_INPUTS=(--input "matan-id=${MATAN_ID:-<ID>}" --input "yuval-id=${YUVAL_ID:-<ID>}")
+
+typst compile "${ID_INPUTS[@]}" "${REPO}/report/cbram_report.typ"   "${REPO}/report/cbram_report.pdf"
+typst compile "${ID_INPUTS[@]}" "${REPO}/report/names_and_ids.typ"  "${REPO}/report/names_and_ids.pdf"
 
 # ── 2. Stage the files ────────────────────────────────────────────────────────
 rm -rf "${OUT}" "${ZIP}"
