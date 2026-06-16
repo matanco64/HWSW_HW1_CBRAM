@@ -64,24 +64,19 @@
 We simulate conductive-bridge RAM (CBRAM) forming, a metallic filament grows across the dielectric until it bridges
 the two electrodes. CBRAM is one physical realization of a *memristor* - a
 two-terminal device whose resistance encodes its history of current flow. We model it with the *Dielectric Breakdown Model* (DBM) on an
-$N times N$ grid. Each *growth step* (i) warm-starts a Jacobi solve of the Laplace
-potential $nabla^2 V = 0$ with the existing filament pinned to the cathode
-($V=0$) and the anode held at $V_"app"$, then (ii) adds one filament-adjacent
-empty cell, chosen at random with probability $prop V^eta$ ($eta = 3$). The
-field concentrates at the filament tip, so growth is self-reinforcing and a
-narrow branched filament emerges - the morphology CBRAM exhibits (Fig. 1).
+$N times N$ grid (1024 for visualization and 6144 for simulation). Each *growth step*:
+#set enum(numbering: "i)")
++ warm-starts a Jacobi solve of the Laplace potential $nabla^2 V = 0$ with the existing filament pinned to the cathode ($V=0$) and the anode held at $V_"app"$, then 
++ adds one filament-adjacent empty cell, chosen at random with probability $prop V^eta$ ($eta = 3$). The field concentrates at the filament tip, so growth is self-reinforcing and a narrow branched filament emerges - the morphology CBRAM exhibits (Fig. 1).
+
 
 The simulation is overwhelmingly dominated by step (i): every growth step runs
 `JACOBI_ITERS = 30` double-buffered stencil sweeps over the whole grid, and there
 are $O(N^2)$ growth steps. This makes the *Jacobi sweep a low-arithmetic-intensity,
-memory-bound stencil* - exactly the kernel where data-layout and cache-locality
-optimizations are decisive, which is why we chose it. The *binding* resource,
-though, depends on the core count: on one core we sustain $lt 1%$ of peak DRAM
-bandwidth throughout (0.51 GB/s at baseline, $approx 0.9%$ of the $approx 59$ GB/s
-peak), so the limiter is memory *latency* - a single core cannot keep enough misses
-in flight to saturate the bus - and an optimization pays off by issuing *fewer
-misses*, not by relieving a saturated bus. Raw bandwidth becomes binding only once
-many cores share that bus, a distinction Stage 2 turns out to hinge on (§4).
+memory-bound stencil*: it moves far more bytes than it performs arithmetic, so what
+limits it is *how much data it touches and how close that data sits* - not raw
+compute. That is exactly the kernel where data-layout and cache-locality
+optimizations are decisive, which is why we chose it.
 
 *Methodology.*
 - *One source file per stage* (`dbm_stage0..2.cpp`), identical compiler flags (`-O2 -march=native -std=c++17`).
@@ -185,15 +180,15 @@ traffic it *saved* - traffic that, single-core, was no longer the limiter anyway
 
 *The lesson.* An optimization that *succeeds at its stated target* can still be a
 net loss. Time-skewing is unambiguously the most cache-friendly stage; it is also
-slower, because a net win needs (a) the resource it saves - DRAM bandwidth - to be
-the *binding* constraint, *and* (b) the price paid elsewhere - instructions here -
-to be *smaller* than the saving. On a single core *neither* held in our favour:
-bandwidth was never binding (we ran at $lt 1%$ of peak - the true limiter was
-latency), so the traffic we saved bought almost nothing, while the instructions we
-added were paid in full. Where bandwidth *is* the binding constraint - many cores
-sharing and saturating one memory bus - the saving finally has somewhere to land
-and the same code should tip to a win; that multicore regime is the natural next
-step, left as future work.
+slower, because a net win needs (a) the resource it saves - here, memory traffic -
+to be what is actually *limiting* the kernel, *and* (b) the price paid elsewhere -
+the extra instructions - to be *smaller* than the saving. Neither held for us:
+Stage 1 had already pulled the working set close enough that cutting traffic
+further bought little, while the halo recomputation was paid in full. That points
+at two independent ways to make it pay off, both natural next steps: make memory
+traffic the hard limit again (many cores sharing one memory bus), or make the
+*added compute* cheap enough to pay back (vectorizing the now cache-resident
+stencil with SIMD).
 
 = Comparison and conclusions
 
@@ -208,9 +203,10 @@ bottleneck SoA had already neutralized for a compute bottleneck it then lost - +
 instructions for #sp(s1.cmiss, s2.cmiss)#sym.times less traffic that was no longer
 the limiter. The takeaway is the core of HW/SW co-design: profile to find the
 *binding* constraint, and spend complexity only where the resource saved is the
-one actually limiting you, for less than it costs elsewhere. A multicore run,
-where shared-bus bandwidth becomes binding, is where we expect time-skewing's
-memory advantage to finally turn into wall-clock.
+one actually limiting you, for less than it costs elsewhere. Time-skewing's
+cache-residency is real headroom waiting to be cashed in - either by making memory
+traffic bind again (multiple cores on one bus) or by vectorizing its now
+cache-resident stencil so the added compute pays for itself.
 
 // ── Flame-graph figure ──────────────────────────────────────────────────────
 #v(0.4em)

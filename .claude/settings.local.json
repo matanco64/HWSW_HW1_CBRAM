@@ -44,7 +44,10 @@
       "Bash(git branch *)",
       "Bash(pdftotext submission/cbram_report.pdf -)",
       "Bash(pdftotext submission/names_and_ids.pdf -)",
-      "Bash(awk '{print $5,$9}')"
+      "Bash(awk '{print $5,$9}')",
+      "Bash(sort -t'\"' -k2 -n)",
+      "Bash(git check-ignore *)",
+      "Bash(bash -n run.sh)"
     ]
   }
 }

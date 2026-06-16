@@ -81,7 +81,7 @@ if [[ $NO_RUN -eq 0 ]]; then
     run_stage 0 "naive AoS"
     run_stage 1 "SoA"
     run_stage 2 "SoA + time skewing"
-    run_stage 3 "SoA + skewing + OpenMP" "OMP_PROC_BIND=close OMP_PLACES=cores"
+    run_stage 3 "SoA + skewing + SIMD"
 fi
 
 # ── 4. Correctness gate ───────────────────────────────────────────────────────
@@ -113,7 +113,6 @@ L1-dcache-loads,L1-dcache-load-misses,LLC-loads,LLC-load-misses,\
 dTLB-loads,dTLB-load-misses"
 
 for stage in ${STAGES}; do
-    [[ $stage -eq 3 ]] && continue
     if ! has_stage "${stage}"; then continue; fi
     echo ""
     echo "--- Stage ${stage} ---"
@@ -125,19 +124,6 @@ for stage in ${STAGES}; do
         2> "${RESULTS_DIR}/stage${stage}.perf")
     cat "${RESULTS_DIR}/stage${stage}.perf"
 done
-
-if has_stage 3 && [[ " ${STAGES} " == *" 3 "* ]]; then
-    echo ""
-    echo "--- Stage 3 (all physical cores) ---"
-    [[ -x "${BUILD_DIR}/flush_cache" ]] && "${BUILD_DIR}/flush_cache" > /dev/null
-    (cd "${BUILD_DIR}" && \
-        OMP_PROC_BIND=close OMP_PLACES=cores \
-        perf stat -r "${PERF_RUNS}" \
-        -e "${PERF_EVENTS}" \
-        "${BUILD_DIR}/cbram_stage3" "${N}" -n -s "${STEPS}" \
-        2> "${RESULTS_DIR}/stage3.perf")
-    cat "${RESULTS_DIR}/stage3.perf"
-fi
 
 # ── 5b. Topdown microarchitecture analysis ───────────────────────────────────
 # Where do the cycles actually go? Level-2 topdown splits Backend Bound into
@@ -165,27 +151,7 @@ if [[ $TOPDOWN -eq 1 ]]; then
     echo ""
     echo "=== Topdown analysis (frontend / backend / memory bound) ==="
     for stage in ${STAGES}; do
-        [[ $stage -eq 3 ]] && continue
         topdown_one "${stage}"
-    done
-fi
-
-# ── 6. Thread scaling sweep (stage 3) ────────────────────────────────────────
-if has_stage 3 && [[ " ${STAGES} " == *" 3 "* ]]; then
-    PHYS_CORES=$(lscpu | awk '/^Core\(s\) per socket/ {cores=$NF}
-                              /^Socket\(s\)/           {sockets=$NF}
-                              END {print cores*sockets}')
-    echo ""
-    echo "=== Thread scaling sweep (stage 3, physical cores: ${PHYS_CORES}) ==="
-    for T in 1 2 4 8; do
-        [[ $T -gt $PHYS_CORES ]] && continue
-        echo -n "  OMP_NUM_THREADS=${T} ... "
-        (cd "${BUILD_DIR}" && \
-            OMP_NUM_THREADS=${T} OMP_PROC_BIND=close OMP_PLACES=cores \
-            perf stat -r "${PERF_RUNS}" -e cycles,instructions,LLC-load-misses \
-            "${BUILD_DIR}/cbram_stage3" "${N}" -n -s "${STEPS}" \
-            2> "${RESULTS_DIR}/stage3_t${T}.perf")
-        grep "seconds time elapsed" "${RESULTS_DIR}/stage3_t${T}.perf" | head -1
     done
 fi
 
@@ -207,6 +173,7 @@ flamegraph_one() {
     local stage=$1
     has_stage "${stage}" || return 0
     local data="${RESULTS_DIR}/stage${stage}.data"
+    local folded="${RESULTS_DIR}/stage${stage}.folded"
     local svg="${RESULTS_DIR}/stage${stage}_flamegraph.svg"
     echo ""
     echo "--- Stage ${stage} ---"
@@ -215,11 +182,15 @@ flamegraph_one() {
         perf record -e cpu-clock:u -F 999 --call-graph dwarf \
         -o "${data}" \
         -- "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n -s "${STEPS}")
-    perf script --inline -i "${data}" | \
-        "${FLAMEGRAPH_DIR}/stackcollapse-perf.pl" | \
-        "${FLAMEGRAPH_DIR}/flamegraph.pl" \
-            --title "cbram_stage${stage} (N=${N})" > "${svg}"
-    echo "  Flamegraph: ${svg}"
+    # Keep the folded stacks: a tiny (KB) plain-text artifact that regenerates the
+    # flame graph anywhere with any options, needing neither the .data nor the
+    # binary. We omit --inline: at -O2 it synthesizes a phantom 'main' leaf frame
+    # above solve_potential (an inline-attribution artifact, not a real call).
+    perf script -i "${data}" | \
+        "${FLAMEGRAPH_DIR}/stackcollapse-perf.pl" > "${folded}"
+    "${FLAMEGRAPH_DIR}/flamegraph.pl" \
+        --title "cbram_stage${stage} (N=${N})" "${folded}" > "${svg}"
+    echo "  Flamegraph: ${svg}  (folded stacks: ${folded})"
     # Quick text hotspot summary (top self-time symbols).
     perf report -i "${data}" --stdio --no-children 2>/dev/null | \
         grep -E '^\s+[0-9]+\.[0-9]+%' | head -8

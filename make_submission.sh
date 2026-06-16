@@ -49,6 +49,8 @@ cp "${REPO}/MDs/prompts.md" "${OUT}/prompts.md"
 cp "${REPO}/results/metrics.md" "${REPO}/results/env.txt" "${OUT}/results/"
 cp "${REPO}"/results/stage{0,1,2}.perf            "${OUT}/results/"
 cp "${REPO}"/results/stage{0,1,2}_flamegraph.svg  "${OUT}/results/"
+# Folded stacks: tiny text that regenerates the flame graphs with any options.
+cp "${REPO}"/results/stage{0,1,2}.folded          "${OUT}/results/"
 
 # Visual: the real-time race video (small).
 cp "${REPO}/comparison_0vs1.mp4" "${OUT}/"

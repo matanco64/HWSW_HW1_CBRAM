@@ -36,6 +36,7 @@ build_stage() {
 build_stage dbm_stage0.cpp   cbram_stage0
 build_stage dbm_stage1.cpp   cbram_stage1
 build_stage dbm_stage2.cpp   cbram_stage2
+build_stage dbm_stage3.cpp   cbram_stage3   "-fopenmp-simd"
 
 echo -n "  Building flush_cache ... "
 ${CXX} ${CXXFLAGS} "${SRCDIR}/flush_cache.cpp" -o "${BUILD_DIR}/flush_cache"
