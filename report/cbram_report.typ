@@ -23,9 +23,10 @@
 // l1m = L1-dcache miss %, cmiss = cache (last-level) misses in billions,
 // dtlb = dTLB-load miss %, instr/cyc = retired instructions / cycles (billions).
 #let machine = "course server · 1-core Intel Xeon E5-2630 v3 @ 2.40 GHz · L1d 32 KiB, L2 4 MiB, L3 16 MiB · N = 6144, 80 growth steps (working set ≈ 302 MB, ≈ 19× the L3)"
-#let s0 = (name: "Stage 0 - AoS (baseline)",     time: 358.43, ipc: 1.835, l1m: 18.91, cmiss: 2.844, dtlb: 0.17, instr: 1508, cyc: 822)
-#let s1 = (name: "Stage 1 - SoA",                time: 243.58, ipc: 2.436, l1m: 7.25,  cmiss: 0.436, dtlb: 0.04, instr: 1343, cyc: 551)
-#let s2 = (name: "Stage 2 - SoA + time-skewing", time: 281.54, ipc: 2.881, l1m: 4.26,  cmiss: 0.087, dtlb: 0.01, instr: 1878, cyc: 652)
+#let s0 = (name: "Stage 0 - AoS (baseline)",     time: 375.82, ipc: 1.746, l1m: 19.00, cmiss: 3.012, dtlb: 0.18, instr: 1508, cyc: 864)
+#let s1 = (name: "Stage 1 - SoA",                time: 245.88, ipc: 2.359, l1m: 7.30,  cmiss: 0.462, dtlb: 0.05, instr: 1343, cyc: 569)
+#let s2 = (name: "Stage 2 - SoA + time-skewing", time: 284.92, ipc: 2.845, l1m: 4.25,  cmiss: 0.162, dtlb: 0.01, instr: 1881, cyc: 661)
+#let s3 = (name: "Stage 3 - SoA + skewing + SIMD", time: 83.53, ipc: 2.110, l1m: 15.24, cmiss: 0.153, dtlb: 0.06, instr: 408, cyc: 193)
 
 #let sp(a, b) = calc.round(a / b, digits: 2)        // ratio helper
 #let pct(x)   = calc.round(x * 100, digits: 0)
@@ -184,11 +185,13 @@ slower, because a net win needs (a) the resource it saves - here, memory traffic
 to be what is actually *limiting* the kernel, *and* (b) the price paid elsewhere -
 the extra instructions - to be *smaller* than the saving. Neither held for us:
 Stage 1 had already pulled the working set close enough that cutting traffic
-further bought little, while the halo recomputation was paid in full. That points
-at two independent ways to make it pay off, both natural next steps: make memory
-traffic the hard limit again (many cores sharing one memory bus), or make the
-*added compute* cheap enough to pay back (vectorizing the now cache-resident
-stencil with SIMD).
+further bought little, while the halo recomputation was paid in full. The lesson
+also points the way out: if the loss is *added compute*, make that compute cheap
+enough to pay back by vectorizing the now cache-resident stencil. *We did exactly
+this* (Stage 3, Appendix A): SIMD over the L2-resident tile collapses instructions
+*#sp(s2.instr, s3.instr)#sym.times* and runtime to *#s3.time s* - *#sp(s2.time, s3.time)#sym.times
+faster than Stage 2* and *#sp(s1.time, s3.time)#sym.times faster than SoA*,
+bit-identical. Time-skewing wins once its compute is vectorized away.
 
 = Comparison and conclusions
 
@@ -204,9 +207,12 @@ instructions for #sp(s1.cmiss, s2.cmiss)#sym.times less traffic that was no long
 the limiter. The takeaway is the core of HW/SW co-design: profile to find the
 *binding* constraint, and spend complexity only where the resource saved is the
 one actually limiting you, for less than it costs elsewhere. Time-skewing's
-cache-residency is real headroom waiting to be cashed in - either by making memory
-traffic bind again (multiple cores on one bus) or by vectorizing its now
-cache-resident stencil so the added compute pays for itself.
+cache-residency was real headroom, and *Stage 3 cashes it in*: vectorizing the
+now-cache-resident stencil makes the added compute pay for itself, turning the
+slowest "optimization" into the fastest stage overall - *#s3.time s,
+#sp(s0.time, s3.time)#sym.times over the baseline* and #sp(s1.time, s3.time)#sym.times
+over SoA, still bit-identical (full analysis in Appendix A). The remaining headroom,
+making memory traffic bind again across many cores on one bus, is the natural next step.
 
 // ── Flame-graph figure ──────────────────────────────────────────────────────
 #v(0.4em)

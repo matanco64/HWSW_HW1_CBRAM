@@ -34,7 +34,7 @@ STAGE_LABELS = {
     0: "naive AoS",
     1: "SoA",
     2: "SoA + skewing",
-    3: "SoA + skewing + OpenMP",
+    3: "SoA + skewing + SIMD",
 }
 
 

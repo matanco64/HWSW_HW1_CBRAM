@@ -12,9 +12,15 @@ MAPPING TO THE REQUIRED SUBMISSION COMPONENTS
 5. PDF with names + IDs ................ names_and_ids.pdf
 
 Also included:
+  cbram_stage3_appendix.pdf  Appendix A (separate from the 3-page report): the
+                           Stage 3 SIMD optimization that finally makes time-skewing
+                           win — 4.5x over the baseline, bit-identical.
   dbm_stage2.cpp ......... a further optimization we explored (time-skewing /
-                           temporal blocking) that did NOT pay off — analysed in
-                           the report as our "approach that didn't work".
+                           temporal blocking) that did NOT pay off on a single core
+                           — analysed in the report as our "approach that didn't work".
+  dbm_stage3.cpp ......... Stage 3: vectorizes Stage 2's cache-resident stencil
+                           (AVX2 via `#pragma omp simd`), turning the slowest stage
+                           into the fastest. Documented in Appendix A.
   physics_dbm.h, io.h, io.cpp ... shared sources needed to compile the stages.
   flush_cache.cpp ........ cold-cache helper built by build.sh before each timed run.
   perf_metrics.py ........ derives the IPC / miss-rate table (run.sh, final step).
@@ -24,13 +30,13 @@ Also included:
   results/ ............... the perf evidence the report cites:
                              metrics.md ............ derived IPC / miss-rate table
                              env.txt ............... lscpu of the profiling machine
-                             stage{0,1,2}.perf ..... raw `perf stat -r 3` output
-                             stage{0,1,2}_flamegraph.svg ... `perf record` flame graphs
+                             stage{0,1,2,3}.perf ... raw `perf stat -r 3` output
+                             stage{0,1,2,3}_flamegraph.svg ... `perf record` flame graphs
 
 ================================================================================
 HOW TO BUILD AND RUN
 ================================================================================
-  ./build.sh                     # compiles cbram_stage0/1/2 into ./build/
+  ./build.sh                     # compiles cbram_stage0/1/2/3 into ./build/
   ./build/cbram_stage0 6144 -s 80   # unoptimized run (N=6144, 80 growth steps)
   ./build/cbram_stage1 6144 -s 80   # optimized run
   cmp build/V_final_stage1.bin build/V_final_stage0.bin   # bit-identical check

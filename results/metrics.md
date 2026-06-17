@@ -5,7 +5,7 @@
 | 0 | naive AoS | 376 | 1.746 | 20.461 | 18.987 | n/a | n/a | 0.179 | n/a |
 | 1 | SoA | 246 | 2.359 | 28.564 | 7.306 | n/a | n/a | 0.048 | n/a |
 | 2 | SoA + skewing | 285 | 2.845 | 13.049 | 4.245 | n/a | n/a | 0.014 | n/a |
-| 3 | SoA + skewing + OpenMP | 83.530 | 2.110 | 6.574 | 15.235 | n/a | n/a | 0.059 | n/a |
+| 3 | SoA + skewing + SIMD | 83.530 | 2.110 | 6.574 | 15.235 | n/a | n/a | 0.059 | n/a |
 
 ### Stage 1 (SoA) vs stage 0
 - speedup: **1.53x**  (375.819s -> 245.877s)
@@ -21,7 +21,7 @@
 - L1%: 18.987 -> 4.245  (↓ 78%)
 - dTLB%: 0.179 -> 0.014  (↓ 92%)
 
-### Stage 3 (SoA + skewing + OpenMP) vs stage 0
+### Stage 3 (SoA + skewing + SIMD) vs stage 0
 - speedup: **4.50x**  (375.819s -> 83.530s)
 - IPC: 1.746 -> 2.110  (↑ 21%)
 - cache%: 20.461 -> 6.574  (↓ 68%)

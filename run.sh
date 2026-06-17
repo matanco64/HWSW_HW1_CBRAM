@@ -184,10 +184,15 @@ flamegraph_one() {
         -- "${BUILD_DIR}/cbram_stage${stage}" "${N}" -n -s "${STEPS}")
     # Keep the folded stacks: a tiny (KB) plain-text artifact that regenerates the
     # flame graph anywhere with any options, needing neither the .data nor the
-    # binary. We omit --inline: at -O2 it synthesizes a phantom 'main' leaf frame
-    # above solve_potential (an inline-attribution artifact, not a real call).
+    # binary. We omit --inline, but at -O2 perf still re-attributes some samples
+    # from inlined hot code (solve_potential/advance_tile) to a phantom 'main' leaf
+    # stacked on top. The perl filter folds that artifact back into its real parent:
+    # it drops a trailing ';main' leaf only when 'main' already appears deeper in the
+    # stack, so the genuine main self-time stack is preserved.
     perf script -i "${data}" | \
-        "${FLAMEGRAPH_DIR}/stackcollapse-perf.pl" > "${folded}"
+        "${FLAMEGRAPH_DIR}/stackcollapse-perf.pl" | \
+        perl -ne 'if (/^(.*);main(\s+\d+)$/) { my($p,$c)=($1,$2); if ($p =~ /(^|;)main(;|$)/) { print "$p$c\n"; next; } } print;' \
+        > "${folded}"
     "${FLAMEGRAPH_DIR}/flamegraph.pl" \
         --title "cbram_stage${stage} (N=${N})" "${folded}" > "${svg}"
     echo "  Flamegraph: ${svg}  (folded stacks: ${folded})"
