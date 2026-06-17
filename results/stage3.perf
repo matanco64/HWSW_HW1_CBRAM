@@ -1,0 +1,16 @@
+
+ Performance counter stats for '/root/HWSW_HW1_CBRAM/build/cbram_stage3 6144 -n -s 80' (3 runs):
+
+      193224973881      cycles                                                        ( +-  0.07% )  (62.48%)
+      407742283242      instructions              #    2.11  insn per cycle           ( +-  0.01% )  (74.98%)
+        2330838059      cache-references                                              ( +-  0.58% )  (74.98%)
+         153231090      cache-misses              #    6.499 % of all cache refs      ( +-  0.05% )  (75.02%)
+       71190276603      L1-dcache-loads                                               ( +-  0.03% )  (75.02%)
+       10845685207      L1-dcache-load-misses     #   15.24% of all L1-dcache accesses  ( +-  0.07% )  (75.01%)
+   <not supported>      LLC-loads                                                   
+   <not supported>      LLC-load-misses                                             
+      100631816632      dTLB-loads                                                    ( +-  0.04% )  (49.99%)
+          59160065      dTLB-load-misses          #    0.06% of all dTLB cache accesses  ( +-  0.18% )  (49.97%)
+
+            83.530 +- 0.238 seconds time elapsed  ( +-  0.29% )
+
