@@ -1,16 +1,16 @@
 
  Performance counter stats for '/root/HWSW_HW1_CBRAM/build/cbram_stage2 6144 -n -s 80' (3 runs):
 
-      651904214651      cycles                                                        ( +-  0.03% )  (62.51%)
-     1877928813750      instructions              #    2.88  insn per cycle           ( +-  0.01% )  (75.00%)
-        1080266579      cache-references                                              ( +-  0.17% )  (74.99%)
-          87150152      cache-misses              #    8.089 % of all cache refs      ( +-  1.81% )  (74.99%)
-      345581670009      L1-dcache-loads                                               ( +-  0.02% )  (75.01%)
-       14717025553      L1-dcache-load-misses     #    4.26% of all L1-dcache accesses  ( +-  0.02% )  (75.00%)
+      660955075191      cycles                                                        ( +-  0.03% )  (62.51%)
+     1880520678447      instructions              #    2.85  insn per cycle           ( +-  0.00% )  (75.00%)
+        1238218825      cache-references                                              ( +-  0.30% )  (74.99%)
+         161576289      cache-misses              #   13.004 % of all cache refs      ( +-  0.15% )  (74.99%)
+      348409511720      L1-dcache-loads                                               ( +-  0.02% )  (75.00%)
+       14789964180      L1-dcache-load-misses     #    4.25% of all L1-dcache accesses  ( +-  0.01% )  (75.00%)
    <not supported>      LLC-loads                                                   
    <not supported>      LLC-load-misses                                             
-      488997525026      dTLB-loads                                                    ( +-  0.02% )  (50.00%)
-          66352232      dTLB-load-misses          #    0.01% of all dTLB cache accesses  ( +-  0.43% )  (50.01%)
+      492918838563      dTLB-loads                                                    ( +-  0.00% )  (50.01%)
+          69026784      dTLB-load-misses          #    0.01% of all dTLB cache accesses  ( +-  0.62% )  (50.01%)
 
-           281.535 +- 0.380 seconds time elapsed  ( +-  0.13% )
+          284.9234 +- 0.0180 seconds time elapsed  ( +-  0.01% )
 

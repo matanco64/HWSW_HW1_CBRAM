@@ -21,19 +21,22 @@ else
 fi
 ID_INPUTS=(--input "matan-id=${MATAN_ID:-<ID>}" --input "yuval-id=${YUVAL_ID:-<ID>}")
 
-typst compile "${ID_INPUTS[@]}" "${REPO}/report/cbram_report.typ"   "${REPO}/report/cbram_report.pdf"
-typst compile "${ID_INPUTS[@]}" "${REPO}/report/names_and_ids.typ"  "${REPO}/report/names_and_ids.pdf"
+typst compile "${ID_INPUTS[@]}" "${REPO}/report/cbram_report.typ"           "${REPO}/report/cbram_report.pdf"
+typst compile "${ID_INPUTS[@]}" "${REPO}/report/cbram_stage3_appendix.typ"  "${REPO}/report/cbram_stage3_appendix.pdf"
+typst compile "${ID_INPUTS[@]}" "${REPO}/report/names_and_ids.typ"          "${REPO}/report/names_and_ids.pdf"
 
 # ── 2. Stage the files ────────────────────────────────────────────────────────
 rm -rf "${OUT}" "${ZIP}"
 mkdir -p "${OUT}/results"
 
 # Component 1: the report (≤3 pp).            Component 5: names + IDs PDF.
-cp "${REPO}/report/cbram_report.pdf"  "${OUT}/"
-cp "${REPO}/report/names_and_ids.pdf" "${OUT}/"
+cp "${REPO}/report/cbram_report.pdf"           "${OUT}/"
+cp "${REPO}/report/cbram_stage3_appendix.pdf"  "${OUT}/"   # Appendix A: the Stage 3 SIMD win
+cp "${REPO}/report/names_and_ids.pdf"          "${OUT}/"
 
-# Components 2 & 3: unoptimized + optimized source (+ stage2 = the "didn't pay" one).
-cp "${REPO}"/dbm_stage0.cpp "${REPO}"/dbm_stage1.cpp "${REPO}"/dbm_stage2.cpp "${OUT}/"
+# Components 2 & 3: unoptimized + optimized source (stage2 = the "didn't pay" one,
+# stage3 = the SIMD payoff documented in Appendix A).
+cp "${REPO}"/dbm_stage0.cpp "${REPO}"/dbm_stage1.cpp "${REPO}"/dbm_stage2.cpp "${REPO}"/dbm_stage3.cpp "${OUT}/"
 # Shared sources needed to compile the stages.
 cp "${REPO}"/physics_dbm.h "${REPO}"/io.h "${REPO}"/io.cpp "${OUT}/"
 # flush_cache (cold-cache helper built by build.sh); perf_metrics.py (run.sh step 9).
@@ -47,10 +50,10 @@ cp "${REPO}/MDs/prompts.md" "${OUT}/prompts.md"
 
 # Supporting evidence the report cites (small text + svg only — NOT the raw .data).
 cp "${REPO}/results/metrics.md" "${REPO}/results/env.txt" "${OUT}/results/"
-cp "${REPO}"/results/stage{0,1,2}.perf            "${OUT}/results/"
-cp "${REPO}"/results/stage{0,1,2}_flamegraph.svg  "${OUT}/results/"
+cp "${REPO}"/results/stage{0,1,2,3}.perf            "${OUT}/results/"
+cp "${REPO}"/results/stage{0,1,2,3}_flamegraph.svg  "${OUT}/results/"
 # Folded stacks: tiny text that regenerates the flame graphs with any options.
-cp "${REPO}"/results/stage{0,1,2}.folded          "${OUT}/results/"
+cp "${REPO}"/results/stage{0,1,2,3}.folded          "${OUT}/results/"
 
 # Visual: the real-time race video (small).
 cp "${REPO}/comparison_0vs1.mp4" "${OUT}/"

@@ -47,7 +47,10 @@
       "Bash(awk '{print $5,$9}')",
       "Bash(sort -t'\"' -k2 -n)",
       "Bash(git check-ignore *)",
-      "Bash(bash -n run.sh)"
+      "Bash(bash -n run.sh)",
+      "Bash(./make_submission.sh)",
+      "Bash(pdftotext report/cbram_report.pdf -)",
+      "Bash(sort -t' ' -k2 -nr results/stage3.folded)"
     ]
   }
 }
